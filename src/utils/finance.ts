@@ -131,3 +131,33 @@ export function calculateMonthlySIP(shortfall: number, nominalRate: number, dura
   const pmt = shortfall * r / (Math.pow(1 + r, n) - 1);
   return pmt;
 }
+
+/**
+ * Calculates the Equated Monthly Installment (EMI) for a given loan amount, rate, and tenure
+ */
+export function calculateEMI(loanAmount: number, ratePercent: number, tenureYears: number): number {
+  if (loanAmount <= 0 || tenureYears <= 0) return 0;
+  
+  const r = (ratePercent / 100) / 12; // Monthly interest rate
+  const n = tenureYears * 12;          // Total months
+  
+  // Standard EMI formula: PMT = [L * r * (1 + r)^n] / [(1+r)^n - 1]
+  const emi = (loanAmount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+  return emi;
+}
+
+/**
+ * Calculates the required initial corpus in a mutual fund to pay out a monthly EMI
+ * via SWP (Systematic Withdrawal Plan), assuming fund compounds at a given yield
+ */
+export function calculateSwpCorpusRequired(monthlyWithdrawal: number, yieldPercent: number, tenureYears: number): number {
+  if (monthlyWithdrawal <= 0 || tenureYears <= 0) return 0;
+  
+  const r = (yieldPercent / 100) / 12; // Monthly rate of compounding return
+  const n = tenureYears * 12;          // Total months
+  
+  // Present Value of Annuity formula: PV = PMT * [1 - (1 + r)^-n] / r
+  const pv = monthlyWithdrawal * (1 - Math.pow(1 + r, -n)) / r;
+  return pv;
+}
+

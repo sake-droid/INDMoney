@@ -4,9 +4,9 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { X, Sliders, Coins, ShieldCheck, AlertCircle, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Sliders, Coins, ShieldCheck, AlertCircle, Sparkles, ChevronDown, ChevronUp, Landmark, FileSpreadsheet, ArrowRightLeft } from "lucide-react";
 import { AssetCategory, Goal, SubAsset } from "../types";
-import { formatIndianCurrency, calculateFutureValue, calculateMonthlySIP } from "../utils/finance";
+import { formatIndianCurrency, calculateFutureValue, calculateMonthlySIP, calculateEMI, calculateSwpCorpusRequired } from "../utils/finance";
 
 interface GoalBottomSheetProps {
   isOpen: boolean;
@@ -22,11 +22,12 @@ export default function GoalBottomSheet({
   isOpen,
   onClose,
   category,
-  assets,
+  assets: rawAssets,
   onSaveGoal,
   editingGoal,
   goals,
 }: GoalBottomSheetProps) {
+  const assets = rawAssets.filter(a => a.id !== "nps" && a.id !== "ppf" && a.id !== "esops" && a.id !== "real_estate");
   // Find which other goal owns a sub asset
   const getSubAssetOwnerGoal = (subId: string): Goal | undefined => {
     return goals.find(g => g.id !== editingGoal?.id && g.allocations && g.allocations.some(a => a.subAssetId === subId));
@@ -52,6 +53,8 @@ export default function GoalBottomSheet({
   const [title, setTitle] = useState("");
   const [targetAmount, setTargetAmount] = useState(defaults.amount);
   const [durationYears, setDurationYears] = useState(defaults.years);
+  const [downPayment, setDownPayment] = useState(defaults.amount);
+  const [loanAmount, setLoanAmount] = useState(0);
   
   // Array of earmarked sub-asset IDs
   const [selectedSubAssetIds, setSelectedSubAssetIds] = useState<string[]>([]);
@@ -76,6 +79,11 @@ export default function GoalBottomSheet({
         setTargetAmount(editingGoal.targetAmount);
         setDurationYears(editingGoal.durationYears);
         
+        const savedDown = editingGoal.downPayment !== undefined ? editingGoal.downPayment : editingGoal.targetAmount;
+        const savedLoan = editingGoal.loanAmount !== undefined ? editingGoal.loanAmount : 0;
+        setDownPayment(savedDown);
+        setLoanAmount(savedLoan);
+        
         // Load allocations
         if (editingGoal.allocations && editingGoal.allocations.length > 0) {
           setSelectedSubAssetIds(editingGoal.allocations.map(a => a.subAssetId));
@@ -98,6 +106,8 @@ export default function GoalBottomSheet({
         setTitle(category);
         setTargetAmount(defaults.amount);
         setDurationYears(defaults.years);
+        setDownPayment(defaults.amount);
+        setLoanAmount(0);
         
         // Sensible default based on category: select all sub assets of default asset category (that are not committed elsewhere)
         const defaultAsset = assets.find(a => a.id === defaults.assetId);
@@ -112,6 +122,7 @@ export default function GoalBottomSheet({
       }
     }
   }, [isOpen, category, editingGoal]);
+
 
   if (!isOpen) return null;
 
@@ -143,9 +154,9 @@ export default function GoalBottomSheet({
     true // 6% inflation subtracted
   );
 
-  const shortfall = Math.max(0, targetAmount - realFutureValue);
-  const achievedPercentage = Math.min(100, (currentValueAllocated / targetAmount) * 100);
-  const isSufficient = realFutureValue >= targetAmount;
+  const shortfall = Math.max(0, downPayment - realFutureValue);
+  const achievedPercentage = downPayment > 0 ? Math.min(100, (currentValueAllocated / downPayment) * 100) : 100;
+  const isSufficient = realFutureValue >= downPayment;
 
   // Handle saving goal
   const handleSave = () => {
@@ -202,6 +213,8 @@ export default function GoalBottomSheet({
       futureValueAllocated: realFutureValue,
       shortfall,
       achievedPercentage,
+      downPayment,
+      loanAmount,
     };
     onSaveGoal(goal);
     onClose();
@@ -290,7 +303,12 @@ export default function GoalBottomSheet({
               max={15000000}
               step={50000}
               value={targetAmount}
-              onChange={(e) => setTargetAmount(Number(e.target.value))}
+              onChange={(e) => {
+                const newAmount = Number(e.target.value);
+                setTargetAmount(newAmount);
+                setDownPayment(newAmount);
+                setLoanAmount(0);
+              }}
               className="w-full accent-brand h-1.5 bg-slate-150 rounded-lg cursor-pointer"
             />
             <div className="flex justify-between text-slate-450 text-slate-500 text-[9px] font-bold font-mono">
@@ -300,6 +318,121 @@ export default function GoalBottomSheet({
               <span>₹1.5 Cr</span>
             </div>
           </div>
+
+          {/* Co-Funding Split Sliders (Down Payment vs Loan) */}
+          <div className="bg-violet-50/40 p-4 border border-violet-100 rounded-2xl space-y-4">
+            <h4 className="text-[10.5px] text-violet-950 font-black uppercase tracking-wide flex items-center justify-between">
+              <span>Fund Split Blueprint</span>
+              <span className="text-[9px] bg-violet-100 text-violet-800 border border-violet-200/50 px-2 py-0.5 rounded-md font-bold font-sans">
+                Interactive Split
+              </span>
+            </h4>
+            
+            {/* Down Payment Slider */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-semibold">
+                <span className="text-slate-600">Down Payment (Earmarked assets backing)</span>
+                <span className="text-violet-700 font-extrabold">{formatIndianCurrency(downPayment)}</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={targetAmount}
+                step={25000}
+                value={downPayment}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setDownPayment(val);
+                  setLoanAmount(targetAmount - val);
+                }}
+                className="w-full accent-violet-600 h-1 bg-slate-200 rounded-lg cursor-pointer"
+              />
+              <div className="flex justify-between text-[8px] text-slate-500 font-bold font-mono">
+                <span>0% Upfront</span>
+                <span>{targetAmount > 0 ? ((downPayment / targetAmount) * 100).toFixed(0) : 0}% Self-Funded</span>
+                <span>Max {formatIndianCurrency(targetAmount, true)}</span>
+              </div>
+            </div>
+
+            {/* Loan Amount Slider */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-semibold">
+                <span className="text-slate-600">Loan Amount (Debt component)</span>
+                <span className="text-cyan-700 font-extrabold">{formatIndianCurrency(loanAmount)}</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={targetAmount}
+                step={25000}
+                value={loanAmount}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setLoanAmount(val);
+                  setDownPayment(targetAmount - val);
+                }}
+                className="w-full accent-cyan-600 h-1 bg-slate-200 rounded-lg cursor-pointer"
+              />
+              <div className="flex justify-between text-[8px] text-slate-500 font-bold font-mono">
+                <span>0% Loan</span>
+                <span>{targetAmount > 0 ? ((loanAmount / targetAmount) * 100).toFixed(0) : 0}% Debt-Funded</span>
+                <span>Max {formatIndianCurrency(targetAmount, true)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Real-time Loan EMI & SWP Arbitrage Math Block */}
+          {loanAmount > 0 && (
+            <div className="bg-gradient-to-br from-cyan-50 to-emerald-50/50 border border-cyan-200 p-4 rounded-2xl space-y-3 shadow-3xs animate-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center gap-2 text-cyan-950 font-extrabold text-[11px] uppercase tracking-wider">
+                <Landmark className="w-4 h-4 text-cyan-600 animate-bounce" />
+                <span>Smart Loan EMI & SWP Arbitrage Math</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pb-2.5 border-b border-cyan-150">
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">
+                    Estimated EMI (at 8% p.a.)
+                  </span>
+                  <span className="text-cyan-950 font-sans text-xs font-black">
+                    {formatIndianCurrency(calculateEMI(loanAmount, 8, durationYears))}
+                    <span className="text-[9px] text-slate-500 font-bold"> /mo</span>
+                  </span>
+                  <span className="text-[8px] text-slate-500 block font-semibold">
+                    Over {durationYears} year tenure
+                  </span>
+                </div>
+                
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-emerald-800 font-bold uppercase tracking-wider block">
+                    Equivalent MF SWP Corpus
+                  </span>
+                  <span className="text-emerald-950 font-sans text-xs font-black">
+                    {formatIndianCurrency(calculateSwpCorpusRequired(calculateEMI(loanAmount, 8, durationYears), 12, durationYears))}
+                  </span>
+                  <span className="text-[8.5px] text-emerald-750 block font-black font-sans leading-none">
+                    Saves {formatIndianCurrency(loanAmount - calculateSwpCorpusRequired(calculateEMI(loanAmount, 8, durationYears), 12, durationYears), true)} upfront!
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-white border border-cyan-100 rounded-xl space-y-1.5 text-[10px] sm:text-[10.5px] text-slate-700 font-medium leading-relaxed">
+                <div className="flex items-center gap-1.5 text-slate-900 font-extrabold text-xs">
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>How the Arbitrage Math works:</span>
+                </div>
+                <p>
+                  1. Since the loan interest rate is <span className="text-pink-600 font-black">8% p.a.</span>, your calculated monthly EMI payment is <span className="font-extrabold text-slate-800">{formatIndianCurrency(calculateEMI(loanAmount, 8, durationYears))}</span>.
+                </p>
+                <p>
+                  2. Rather than paying the bank in cash, you should select a <span className="text-brand font-black font-sans">Systematic Withdrawal Plan (SWP)</span> from your Mutual Fund compounding at a historical nominal yield of <span className="text-emerald-600 font-black">12% p.a.</span>.
+                </p>
+                <p>
+                  3. Due to this 4% rate differential compounding in your favor, a starting corpus of just <b className="text-slate-900 font-black">{formatIndianCurrency(calculateSwpCorpusRequired(calculateEMI(loanAmount, 8, durationYears), 12, durationYears))}</b> inside your mutual fund is sufficient to fund the entire loan tenure of EMIs, saving you <b className="text-emerald-700 font-black">{formatIndianCurrency(loanAmount - calculateSwpCorpusRequired(calculateEMI(loanAmount, 8, durationYears), 12, durationYears))} ({((1 - calculateSwpCorpusRequired(calculateEMI(loanAmount, 8, durationYears), 12, durationYears) / loanAmount) * 100).toFixed(1)}%)</b> in upfront capital!
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Duration slider */}
           <div className="space-y-3.5">
@@ -494,7 +627,7 @@ export default function GoalBottomSheet({
               )}
               {isSufficient && (
                 <div className="text-emerald-700 text-xs font-bold font-sans mt-1.5">
-                  Surplus reserve: {formatIndianCurrency(realFutureValue - targetAmount)} (achievable)
+                  Surplus reserve: {formatIndianCurrency(realFutureValue - downPayment)} (achievable)
                 </div>
               )}
               <div className="text-[10px] text-slate-500 leading-tight font-medium pt-1">

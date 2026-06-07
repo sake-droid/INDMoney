@@ -39,6 +39,9 @@ export interface Goal {
   futureValueAllocated: number; // inflation-adjusted future value
   shortfall: number;
   achievedPercentage: number;
+  activeSipAmount?: number; // active systematic investment plan monthly amount
+  downPayment?: number; // custom down payment funded via earmarking
+  loanAmount?: number; // custom loan amount funded via debt
 }
 
 export interface UserProfile {

@@ -11,9 +11,10 @@ interface HeaderProps {
   userAge: number;
   onNavigate: (view: number) => void;
   activeView: number;
+  onEditProfile: () => void;
 }
 
-export default function Header({ userName, userAge, onNavigate, activeView }: HeaderProps) {
+export default function Header({ userName, userAge, onNavigate, activeView, onEditProfile }: HeaderProps) {
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "synced">("idle");
 
   const handleSyncRef = () => {
@@ -76,9 +77,15 @@ export default function Header({ userName, userAge, onNavigate, activeView }: He
             </button>
           </div>
 
-          <div className="hidden md:flex items-center gap-2 text-[11px] text-brand bg-brand-light border border-slate-200 rounded-md py-1.5 px-3">
-            <Sparkles className="w-3.5 h-3.5 text-brand animate-pulse pointer-events-none" />
-            <span className="font-medium">Profile linked ({userName}, age {userAge})</span>
+          <div 
+            onClick={onEditProfile}
+            className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-brand bg-brand-light hover:bg-brand/15 border border-brand/20 rounded-md py-1.5 px-2 sm:px-3 cursor-pointer transition-all active:scale-95 shadow-3xs"
+            title="Click to edit profile & age"
+          >
+            <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand shrink-0 animate-pulse pointer-events-none" />
+            <span className="font-semibold select-none">
+              Profile: <span className="underline decoration-dotted underline-offset-2">{userName}</span>, age <b>{userAge}</b>
+            </span>
           </div>
 
           <div className="flex items-center gap-2">

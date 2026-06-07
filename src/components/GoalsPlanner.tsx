@@ -6,7 +6,7 @@
 import React from "react";
 import * as Icons from "lucide-react";
 import { Goal, AssetCategory } from "../types";
-import { formatIndianCurrency, calculateMonthlySIP } from "../utils/finance";
+import { formatIndianCurrency, calculateMonthlySIP, calculateEMI, calculateSwpCorpusRequired } from "../utils/finance";
 
 interface GoalsPlannerProps {
   goals: Goal[];
@@ -14,6 +14,7 @@ interface GoalsPlannerProps {
   onSelectCategory: (category: string) => void;
   onEditGoal: (goal: Goal) => void;
   onDeleteGoal: (id: string) => void;
+  onStartSip: (goal: Goal, recommendedAmount: number) => void;
 }
 
 export default function GoalsPlanner({
@@ -22,6 +23,7 @@ export default function GoalsPlanner({
   onSelectCategory,
   onEditGoal,
   onDeleteGoal,
+  onStartSip,
 }: GoalsPlannerProps) {
   
   // Icon picker helper
@@ -138,8 +140,10 @@ export default function GoalsPlanner({
               }
 
               const currentCommitted = goal.currentValueAllocated;
-              const progressPercentage = Math.min(100, (currentCommitted / goal.targetAmount) * 100);
-              const isFundSufficient = goal.futureValueAllocated >= goal.targetAmount;
+              const earmarkTarget = goal.downPayment !== undefined ? goal.downPayment : goal.targetAmount;
+              const loanAmountVal = goal.loanAmount !== undefined ? goal.loanAmount : 0;
+              const progressPercentage = earmarkTarget > 0 ? Math.min(100, (currentCommitted / earmarkTarget) * 100) : 100;
+              const isFundSufficient = goal.futureValueAllocated >= earmarkTarget;
 
               // Calculate specific nominal compounding rate for this goal to suggest SIP
               let nominalRateVal = 10; // default rate
@@ -175,9 +179,17 @@ export default function GoalsPlanner({
                         {renderIcon(goal.iconName, "text-brand")}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-slate-900 text-sm font-extrabold tracking-tight truncate">
-                          {goal.title}
-                        </h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-slate-900 text-sm font-extrabold tracking-tight truncate">
+                            {goal.title}
+                          </h4>
+                          {goal.activeSipAmount && goal.activeSipAmount > 0 && (
+                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[9px] px-1.5 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              SIP Active: {formatIndianCurrency(goal.activeSipAmount, true)}/mo
+                            </span>
+                          )}
+                        </div>
                         <span className="text-slate-500 text-[10.5px] uppercase tracking-wider block font-semibold mt-0.5 truncate">
                           Backing: <span className="text-brand font-bold">{allocationName}</span>
                         </span>
@@ -209,7 +221,7 @@ export default function GoalsPlanner({
                         Committed capital base
                       </span>
                       <span className="text-slate-800 font-bold font-sans">
-                        {formatIndianCurrency(currentCommitted, true)} of {formatIndianCurrency(goal.targetAmount, true)}
+                        {formatIndianCurrency(currentCommitted, true)} of {formatIndianCurrency(earmarkTarget, true)}
                       </span>
                     </div>
                     
@@ -228,6 +240,21 @@ export default function GoalsPlanner({
                         Horizon: <b className="text-slate-700">{goal.durationYears} years</b>
                       </span>
                     </div>
+
+                    {/* Split Details badge */}
+                    {loanAmountVal > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-x-2.5 gap-y-1 p-2 bg-slate-50 border border-slate-200/60 rounded-xl text-[10px]">
+                        <span className="text-violet-700 font-extrabold flex items-center gap-1 shrink-0">
+                          <Icons.BadgePercent className="w-3.5 h-3.5 text-violet-500" />
+                          Down payment: <b>{formatIndianCurrency(earmarkTarget, true)}</b>
+                        </span>
+                        <span className="text-slate-350 shrink-0">|</span>
+                        <span className="text-cyan-700 font-extrabold flex items-center gap-1 shrink-0">
+                          <Icons.Landmark className="w-3.5 h-3.5 text-cyan-500" />
+                          Loan: <b>{formatIndianCurrency(loanAmountVal, true)}</b>
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Future Compounding Real Readout */}
@@ -243,21 +270,51 @@ export default function GoalsPlanner({
                       * Real projection value includes deductible 6.0% inflation index compounding.
                     </p>
 
+                    {/* Real-time Loan EMI & SWP Arbitrage Math Block */}
+                    {loanAmountVal > 0 && (
+                      <div className="p-3 bg-gradient-to-br from-cyan-50/70 to-emerald-50/50 border border-cyan-150 rounded-xl space-y-2 text-[10px] sm:text-[10.5px] leading-relaxed">
+                        <div className="flex items-center gap-1.5 text-cyan-950 font-black uppercase text-[10px] tracking-wide">
+                          <Icons.Activity className="w-3.5 h-3.5 text-cyan-600 animate-pulse" />
+                          <span>Debt SWP Arbitrage Pathway</span>
+                        </div>
+                        <p className="text-slate-700">
+                          A loan of <b className="text-slate-800">{formatIndianCurrency(loanAmountVal)}</b> at 8% p.a. results in a monthly EMI of <b className="text-cyan-950 font-extrabold">{formatIndianCurrency(calculateEMI(loanAmountVal, 8, goal.durationYears))}/mo</b> over {goal.durationYears} years.
+                        </p>
+                        <p className="text-emerald-800 font-semibold bg-emerald-50/60 p-2 border border-emerald-100 rounded-lg">
+                          💡 <b>Smart Move</b>: Instead of outright cash payouts, set up a <b>Systematic Withdrawal Plan (SWP)</b> from your Mutual Funds compounding at 12% p.a. You only need an initial corpus of <b className="text-slate-900 font-extrabold">{formatIndianCurrency(calculateSwpCorpusRequired(calculateEMI(loanAmountVal, 8, goal.durationYears), 12, goal.durationYears))}</b> today to fully fund all repayments, keeping <b className="text-emerald-900 font-extrabold">{formatIndianCurrency(loanAmountVal - calculateSwpCorpusRequired(calculateEMI(loanAmountVal, 8, goal.durationYears), 12, goal.durationYears))} ({((1 - calculateSwpCorpusRequired(calculateEMI(loanAmountVal, 8, goal.durationYears), 12, goal.durationYears) / loanAmountVal) * 100).toFixed(0)}%)</b> in capital compounding in your name!
+                        </p>
+                      </div>
+                    )}
+
                     {!isFundSufficient && (
-                      <div className="space-y-2 pt-1 border-t border-slate-200/50">
+                      <div className="space-y-2.5 pt-1 border-t border-slate-200/50">
                         <div className="text-[10.5px] text-rose-600 font-bold flex items-center gap-1.5">
                           <Icons.AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0 pointer-events-none" />
                           <span>Deficit gap shortfall: <b>{formatIndianCurrency(goal.shortfall)}</b> required</span>
                         </div>
-                        <p className="text-[10.5px] text-slate-700 font-medium leading-relaxed bg-rose-50/50 p-2.5 border border-rose-100/50 rounded-xl">
-                          Suggested action: Invest an estimated <b className="text-brand">{formatIndianCurrency(monthlySIPNeeded)} monthly</b> fresh into these earmarked assets to bridge the shortfall by the estimated time.
-                        </p>
+                        <div className="bg-rose-50/40 p-3 border border-rose-150/40 rounded-xl space-y-2.5">
+                          <p className="text-[10.5px] text-slate-700 font-medium leading-relaxed">
+                            {goal.activeSipAmount && goal.activeSipAmount > 0 ? (
+                              <span>You have setup an active monthly SIP of <b className="text-emerald-700 font-extrabold">{formatIndianCurrency(goal.activeSipAmount)}</b> which bridges <b>{Math.min(100, Math.round((goal.activeSipAmount / monthlySIPNeeded) * 100))}%</b> of the estimated target gap shortfall.</span>
+                            ) : (
+                              <span>Suggested action: Build compounding velocity by starting a recurring monthly SIP. Invest <b className="text-brand">{formatIndianCurrency(monthlySIPNeeded)} monthly</b> to bridge the gap.</span>
+                            )}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => onStartSip(goal, monthlySIPNeeded)}
+                            className="w-full py-2.5 px-3 rounded-xl bg-brand hover:bg-brand-hover text-white text-[11px] font-extrabold uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer transition-all duration-200 active:scale-98 shadow-sm hover:shadow-md border border-brand/20"
+                          >
+                            <Icons.TrendingUp className="w-3.5 h-3.5" />
+                            <span>{goal.activeSipAmount && goal.activeSipAmount > 0 ? "Modify Active Auto-SIP" : "Start Auto SIP & Link Mandate"}</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                     {isFundSufficient && (
                       <div className="text-[10.5px] text-emerald-600 font-bold flex items-center gap-1.5 pt-1 border-t border-slate-200/50">
                         <Icons.CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 pointer-events-none" />
-                        <span>Plan covered! Expected surplus reserves: <b>{formatIndianCurrency(goal.futureValueAllocated - goal.targetAmount)}</b></span>
+                        <span>Plan covered! Expected surplus reserves: <b>{formatIndianCurrency(goal.futureValueAllocated - earmarkTarget)}</b></span>
                       </div>
                     )}
                   </div>

@@ -5,13 +5,23 @@
 
 import React from "react";
 import { Sparkles, ArrowRight, Landmark } from "lucide-react";
+import { formatIndianCurrency } from "../utils/finance";
 
 interface BannerProps {
   hasClickedBanner: boolean;
   onNavigateToPlanning: () => void;
+  nominalWorthAt50: number;
+  realWorthAt50: number;
+  targetAge: number;
 }
 
-export default function Banner({ hasClickedBanner, onNavigateToPlanning }: BannerProps) {
+export default function Banner({ 
+  hasClickedBanner, 
+  onNavigateToPlanning, 
+  nominalWorthAt50, 
+  realWorthAt50, 
+  targetAge 
+}: BannerProps) {
   if (!hasClickedBanner) {
     return (
       <div className="bg-gradient-to-r from-brand-light to-white border border-brand/20 rounded-2xl p-4 sm:py-3.5 sm:px-6 shadow-sm relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-300 hover:shadow-md">
@@ -19,15 +29,19 @@ export default function Banner({ hasClickedBanner, onNavigateToPlanning }: Banne
         <div className="absolute top-0 right-0 w-32 h-full bg-brand/5 blur-xl pointer-events-none"></div>
 
         <div className="flex items-center gap-3.5 text-center sm:text-left relative z-10">
-          <div className="w-9 h-9 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center shrink-0 hidden sm:flex">
+          <div className="w-9 h-9 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center shrink-0 hidden sm:flex animate-bounce">
             <Sparkles className="w-5 h-5 text-brand select-none animate-pulse pointer-events-none" />
           </div>
-          <div>
-            <h4 className="text-slate-900 text-sm sm:text-base font-bold tracking-tight">
-              You are on pace to accumulate <span className="text-brand font-black font-sans">₹1.2 Cr</span> by age <span className="text-brand font-black font-sans">50</span>.
+          <div className="text-left">
+            <h4 className="text-slate-900 text-xs sm:text-sm font-bold tracking-tight">
+              Dynamic roadmap projection:
             </h4>
+            <p className="text-slate-700 text-[11px] sm:text-xs mt-0.5 leading-relaxed font-semibold">
+              You are on pace to accumulate <span className="text-brand font-extrabold font-sans">{formatIndianCurrency(nominalWorthAt50)}</span> (buying power of <span className="text-sky-600 font-extrabold">{formatIndianCurrency(realWorthAt50)}</span> after 6% inflation) by age <span className="text-brand font-extrabold font-sans">{targetAge}</span>.
+            </p>
           </div>
         </div>
+
 
         <button
           onClick={onNavigateToPlanning}

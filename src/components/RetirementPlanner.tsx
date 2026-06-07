@@ -5,17 +5,27 @@
 
 import React, { useState } from "react";
 import { Landmark, CalendarDays, ArrowUpRight, ShieldCheck, AlertCircle, Sparkles, HelpCircle } from "lucide-react";
-import { AssetCategory } from "../types";
+import { AssetCategory, UserProfile } from "../types";
 import { formatIndianCurrency, calculateFutureValue, getWeightedAverageGrowth } from "../utils/finance";
 
 interface RetirementPlannerProps {
   assets: AssetCategory[];
-  currentAge: number;
+  profile: UserProfile;
+  onUpdateProfile: (p: UserProfile) => void;
 }
 
-export default function RetirementPlanner({ assets, currentAge }: RetirementPlannerProps) {
-  const [retirementAge, setRetirementAge] = useState(60);
-  const [targetCorpus, setTargetCorpus] = useState(100000000); // 10 Cr default
+export default function RetirementPlanner({ assets, profile, onUpdateProfile }: RetirementPlannerProps) {
+  const retirementAge = profile.retirementAge;
+  const targetCorpus = profile.targetRetirementCorpus;
+  const currentAge = profile.currentAge;
+
+  const setRetirementAge = (age: number) => {
+    onUpdateProfile({ ...profile, retirementAge: age });
+  };
+
+  const setTargetCorpus = (corpus: number) => {
+    onUpdateProfile({ ...profile, targetRetirementCorpus: corpus });
+  };
 
   // Calculate parameters according to literal user feedback
   // "In case the logged in user's age is 25, we will show him 'Years left' which will be 45 in this case"
