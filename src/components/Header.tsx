@@ -43,9 +43,6 @@ export default function Header({ userName, userAge, onNavigate, activeView, onEd
               <span className="text-slate-900 font-extrabold text-lg tracking-tight group-hover:text-brand transition-colors duration-200">
                 IND<span className="text-brand">money</span>
               </span>
-              <span className="text-[10px] text-slate-500 bg-slate-100 border border-slate-200 ml-2 px-2 py-0.5 rounded-full font-mono font-medium">
-                Plan
-              </span>
             </div>
           </div>
         </div>
@@ -88,25 +85,7 @@ export default function Header({ userName, userAge, onNavigate, activeView, onEd
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button 
-              className={`p-2 border rounded-lg active:scale-95 transition-all text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer ${
-                syncStatus === "synced" 
-                  ? "border-emerald-200 text-emerald-700 bg-emerald-50" 
-                  : "text-slate-600 hover:text-slate-900 border-slate-200 bg-white hover:bg-slate-50"
-              }`}
-              title="Force sync live values"
-              onClick={handleSyncRef}
-              disabled={syncStatus === "syncing"}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${syncStatus === "syncing" ? "animate-spin text-brand" : "text-slate-400"}`} />
-              <span className="hidden sm:inline font-semibold">
-                {syncStatus === "idle" && "Sync feed"}
-                {syncStatus === "syncing" && "Syncing..."}
-                {syncStatus === "synced" && "Synced!"}
-              </span>
-            </button>
-          </div>
+          
         </div>
       </div>
     </header>

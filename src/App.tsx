@@ -233,6 +233,7 @@ export default function App() {
             <NetWorthCard 
               totalValue={totalNetWorth} 
               averageGrowth={weightedGrowthRate} 
+              assets={assets}
             />
 
             {/* Dynamic Banner: Disappears once clicked & returns */}

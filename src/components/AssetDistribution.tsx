@@ -67,11 +67,9 @@ export default function AssetDistribution({ assets, totalNetWorth, onUpdateAsset
   };
 
   const toggleExpand = (id: string) => {
-    if (expandedAssetIds.includes(id)) {
-      setExpandedAssetIds(expandedAssetIds.filter((item) => item !== id));
-    } else {
-      setExpandedAssetIds([...expandedAssetIds, id]);
-    }
+    setExpandedAssetIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
   };
 
   return (

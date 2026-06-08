@@ -59,16 +59,13 @@ export default function GoalBottomSheet({
   // Array of earmarked sub-asset IDs
   const [selectedSubAssetIds, setSelectedSubAssetIds] = useState<string[]>([]);
   
-  // Array of asset categories that are expanded (open) within the bottom sheet checklist.
-  // Initially they are all collapsed.
+  // Array of asset category IDs that are expanded (open) within the bottom sheet checklist.
   const [expandedAssetIds, setExpandedAssetIds] = useState<string[]>([]);
 
   const toggleExpandAsset = (id: string) => {
-    if (expandedAssetIds.includes(id)) {
-      setExpandedAssetIds(expandedAssetIds.filter(item => item !== id));
-    } else {
-      setExpandedAssetIds([...expandedAssetIds, id]);
-    }
+    setExpandedAssetIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
   };
 
   // Initialize values when bottom sheet opens or changes
