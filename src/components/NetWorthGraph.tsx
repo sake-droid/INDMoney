@@ -23,7 +23,6 @@ export default function NetWorthGraph({
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 600, height: 320 });
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const [selectedAge, setSelectedAge] = useState<number>(50);
 
   // Generate data points up to age 80
   const data: NetWorthDataPoint[] = projectNetWorth(
@@ -121,7 +120,9 @@ export default function NetWorthGraph({
     return (maxNominal / yTicks) * i;
   });
 
-  const displayIndex = hoverIndex !== null ? hoverIndex : data.findIndex((d) => d.age === selectedAge);
+  const defaultAge = 50;
+  const defaultIndex = data.findIndex((d) => d.age === defaultAge);
+  const displayIndex = hoverIndex !== null ? hoverIndex : (defaultIndex !== -1 ? defaultIndex : 0);
   const activePoint = displayIndex !== -1 ? data[displayIndex] : data[0];
 
   return (
@@ -159,64 +160,28 @@ export default function NetWorthGraph({
         </div>
       </div>
 
-      {/* Target & Values Row - Single Horizontal Line */}
-      <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3 sm:py-2.5 sm:px-4 flex flex-col sm:flex-row items-center justify-between gap-4.5 shadow-3xs">
-        {/* Interactive Age Selector */}
+      {/* Compact Target & Values Row - Shortened overall banner */}
+      <div className="bg-slate-50 border border-slate-150 rounded-xl px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-3xs">
         <div className="flex items-center gap-2.5">
-          <span className="text-slate-400 text-[10px] font-black uppercase tracking-wider select-none">Projection Target:</span>
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg shadow-3xs px-2 py-0.5">
-            <span className="text-slate-500 text-xs font-semibold select-none">Age</span>
-            <input
-              type="number"
-              min={currentAge}
-              max={80}
-              value={selectedAge}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                if (!isNaN(val)) {
-                  setSelectedAge(Math.max(currentAge, Math.min(80, val)));
-                }
-              }}
-              className="w-8 bg-transparent text-slate-900 text-sm font-black text-center focus:outline-none select-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-sans"
-            />
-            {/* Quick Increment/Decrement Buttons */}
-            <div className="flex flex-col gap-0.5">
-              <button
-                type="button"
-                onClick={() => setSelectedAge((prev) => Math.min(80, prev + 1))}
-                className="text-slate-400 hover:text-slate-705 p-0.5 h-3.5 w-4.5 flex items-center justify-center hover:bg-slate-100 rounded transition-all leading-none"
-              >
-                <span className="text-[10px] leading-none font-bold">▲</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedAge((prev) => Math.max(currentAge, prev - 1))}
-                className="text-slate-400 hover:text-slate-705 p-0.5 h-3.5 w-4.5 flex items-center justify-center hover:bg-slate-100 rounded transition-all leading-none"
-              >
-                <span className="text-[10px] leading-none font-bold">▼</span>
-              </button>
-            </div>
-          </div>
-          <span className="text-brand text-xs font-extrabold font-mono">({activePoint.year})</span>
+          <span className="text-slate-400 text-[10px] font-extrabold uppercase tracking-wider select-none">Target:</span>
+          <span className="text-slate-900 font-extrabold font-sans bg-slate-200/70 text-slate-850 px-2.5 py-1 rounded-lg text-xs sm:text-sm">
+            Age {activePoint.age} <span className="text-slate-500 font-medium font-mono text-[10.5px]">({activePoint.year})</span>
+          </span>
         </div>
 
-        {/* Wealth Value readouts in the same row */}
-        <div className="flex flex-row flex-wrap items-center gap-4 sm:gap-6 justify-end">
-          {/* Nominal Wealth */}
+        <div className="flex items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-2">
-            <span className="text-slate-400 text-[10px] font-black uppercase tracking-wider select-none">Nominal Wealth</span>
-            <span className="text-brand text-base sm:text-lg font-black font-sans leading-none bg-brand-light/30 px-2.5 py-1.5 rounded-lg border border-brand/5 shadow-3xs">
+            <span className="text-slate-400 text-[10px] font-extrabold uppercase tracking-wider select-none">Nominal Wealth</span>
+            <span className="text-brand font-black font-sans bg-brand-light/30 border border-brand/5 px-2.5 py-1 rounded-lg text-xs sm:text-sm shadow-3xs">
               {formatIndianCurrency(activePoint.nominalValue)}
             </span>
           </div>
 
-          {/* Separator */}
-          <span className="hidden sm:inline text-slate-205 text-slate-200">|</span>
+          <span className="text-slate-200 select-none">|</span>
 
-          {/* Real Value */}
           <div className="flex items-center gap-2">
-            <span className="text-slate-400 text-[10px] font-black uppercase tracking-wider select-none">Real Buying Value</span>
-            <span className="text-sky-700 text-base sm:text-lg font-black font-sans leading-none bg-sky-50 px-2.5 py-1.5 rounded-lg border border-sky-100 shadow-3xs">
+            <span className="text-slate-400 text-[10px] font-extrabold uppercase tracking-wider select-none">Real Buying Value</span>
+            <span className="text-teal-700 font-black font-sans bg-teal-50 border border-teal-100 px-2.5 py-1 rounded-lg text-xs sm:text-sm shadow-3xs">
               {formatIndianCurrency(activePoint.realValue)}
             </span>
           </div>
@@ -234,18 +199,6 @@ export default function NetWorthGraph({
           className="overflow-visible cursor-pointer"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
-          onClick={(e) => {
-            if (!containerRef.current) return;
-            const rect = e.currentTarget.getBoundingClientRect();
-            const xMouse = e.clientX - rect.left - paddingLeft;
-            const proportionalX = xMouse / chartWidth;
-            let index = Math.round(proportionalX * (data.length - 1));
-            index = Math.max(0, Math.min(data.length - 1, index));
-            const point = data[index];
-            if (point) {
-              setSelectedAge(point.age);
-            }
-          }}
           id="growth-projection-svg"
         >
           <defs>

@@ -53,7 +53,7 @@ export default function NetWorthCard({ totalValue, averageGrowth, assets }: NetW
 
         {/* Detailed KPI sub-boxes aligned on the right end */}
         <div className="flex flex-row flex-wrap items-center gap-3 shrink-0 w-full md:w-auto mt-2 md:mt-0">
-          <div className="bg-slate-55 bg-slate-50 border-2 border-slate-100 hover:border-[#00b0ff]/30 rounded-2xl px-5 py-3.5 min-w-[155px] flex-1 sm:flex-initial transition-all duration-200 group">
+          <div className="bg-slate-50 border-2 border-slate-100 hover:border-[#00b0ff]/30 rounded-2xl px-5 py-3.5 min-w-[155px] flex-1 sm:flex-initial transition-all duration-200 group">
             <div className="text-slate-400 text-[9px] font-extrabold uppercase tracking-widest block mb-1">
               Avg Portfolio Yield
             </div>
@@ -66,7 +66,7 @@ export default function NetWorthCard({ totalValue, averageGrowth, assets }: NetW
             </div>
           </div>
 
-          <div className="bg-slate-55 bg-slate-50 border-2 border-slate-100 hover:border-[#00b0ff]/30 rounded-2xl px-5 py-3.5 min-w-[155px] flex-1 sm:flex-initial transition-all duration-200 group">
+          <div className="bg-slate-50 border-2 border-slate-100 hover:border-[#00b0ff]/30 rounded-2xl px-5 py-3.5 min-w-[155px] flex-1 sm:flex-initial transition-all duration-200 group">
             <div className="text-slate-400 text-[9px] font-extrabold uppercase tracking-widest block mb-1">
               Top Asset Class
             </div>

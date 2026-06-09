@@ -36,9 +36,8 @@ export default function App() {
   const [tempProfileRetirementAge, setTempProfileRetirementAge] = useState(60);
 
   // Views navigation state
-  // 1 = Home (My Net worth dashboard), 2 = Financial Goals & planning screen
+  // 1 = Home (My Net worth dashboard), 2 = Financial Goals & planning screen, 3 = Retirement Planning screen
   const [activeView, setActiveView] = useState<number>(1);
-  const [activePlanningTab, setActivePlanningTab] = useState<"goals" | "retirement">("goals");
 
   // Track if user clicked on "Plan for Retirement" banner or navigated
   const [hasClickedBanner, setHasClickedBanner] = useState<boolean>(false);
@@ -157,8 +156,11 @@ export default function App() {
   const handleNavigateToPlanning = (tab: "goals" | "retirement" = "goals") => {
     setHasClickedBanner(true);
     localStorage.setItem("ind_seen_banner", "true");
-    setActiveView(2);
-    setActivePlanningTab(tab);
+    setActiveView(tab === "goals" ? 2 : 3);
+  };
+
+  const handleSetPlanningTabFromCopilot = (tab: "goals" | "retirement") => {
+    setActiveView(tab === "goals" ? 2 : 3);
   };
 
   // Bottom Sheet handlers
@@ -222,6 +224,42 @@ export default function App() {
         onEditProfile={handleOpenProfileModal}
       />
 
+      {/* Floating View Toggle below the top Header banner */}
+      <div className="w-full flex justify-center pt-5 pb-1 px-4 relative z-30">
+        <div className="flex items-center bg-white border border-slate-200/90 shadow-md rounded-full p-1 gap-1 max-w-md w-auto select-none">
+          <button
+            onClick={() => setActiveView(1)}
+            className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-xs font-bold cursor-pointer transition-all duration-200 flex items-center gap-1.5 ${
+              activeView === 1
+                ? "bg-brand text-white shadow-xs"
+                : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            My Net Worth
+          </button>
+          <button
+            onClick={() => setActiveView(2)}
+            className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-xs font-bold cursor-pointer transition-all duration-200 flex items-center gap-1.5 ${
+              activeView === 2
+                ? "bg-brand text-white shadow-xs"
+                : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            Financial Goals
+          </button>
+          <button
+            onClick={() => setActiveView(3)}
+            className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-xs font-bold cursor-pointer transition-all duration-200 flex items-center gap-1.5 ${
+              activeView === 3
+                ? "bg-brand text-white shadow-xs"
+                : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            Retirement Planning
+          </button>
+        </div>
+      </div>
+
       {/* 2. Main Container View */}
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-8 pb-16">
         
@@ -257,70 +295,18 @@ export default function App() {
 
         {/* ==================== SCREEN 2: FINANCIAL PLANNING GRAPH & PLANNER ==================== */}
         {activeView === 2 && (
-          <div className="space-y-8">
+          <div className="space-y-8 animate-in fade-in duration-200">
             
-            {/* Adaptive projections graph showing Nominals & inflation adjustments */}
-            <NetWorthGraph
-              currentAge={profile.currentAge}
-              retirementAge={profile.retirementAge}
-              initialNetWorth={totalNetWorth}
-              weightedGrowthRate={weightedGrowthRate}
-            />
-
-            {/* Copilot Natural Language bar for goals & retirement */}
-            <NaturalLanguageBar
-              goals={goals}
-              assets={assets}
-              profile={profile}
-              onSaveGoal={handleSaveGoal}
-              onUpdateProfile={handleUpdateProfile}
-              setActivePlanningTab={setActivePlanningTab}
-            />
-
-            {/* Selector Toggles (Goals vs Retirement side-by-side) */}
-            <div className="border-b border-slate-200 pb-px">
-              <div className="flex gap-6">
-                <button
-                  onClick={() => setActivePlanningTab("goals")}
-                  className={`pb-4 text-sm font-bold select-none cursor-pointer relative transition-all duration-200 ${
-                    activePlanningTab === "goals"
-                      ? "text-brand font-black"
-                      : "text-slate-500 hover:text-slate-900"
-                  }`}
-                  id="tab-goals-trigger"
-                >
-                  <span className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 pointer-events-none text-brand" />
-                    Life goals earmarking
-                  </span>
-                  {activePlanningTab === "goals" && (
-                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand"></span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => setActivePlanningTab("retirement")}
-                  className={`pb-4 text-sm font-bold select-none cursor-pointer relative transition-all duration-200 ${
-                    activePlanningTab === "retirement"
-                      ? "text-brand font-black"
-                      : "text-slate-500 hover:text-slate-900"
-                  }`}
-                  id="tab-retirement-trigger"
-                >
-                  <span className="flex items-center gap-2">
-                    <Landmark className="w-4 h-4 pointer-events-none text-slate-500" />
-                    Retirement planning
-                  </span>
-                  {activePlanningTab === "retirement" && (
-                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand"></span>
-                  )}
-                </button>
-              </div>
+            {/* Header Title on Top */}
+            <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
+              <Sparkles className="w-5 h-5 text-brand" />
+              <h2 className="text-slate-900 text-base sm:text-lg font-bold tracking-tight">Goals Planning</h2>
             </div>
 
-            {/* Conditional Sub-panels */}
-            {activePlanningTab === "goals" ? (
+            {/* 1. My Goals list (Renders at the very top only if user has created goals) */}
+            {goals.length > 0 && (
               <GoalsPlanner
+                mode="active"
                 goals={goals}
                 assets={assets}
                 onSelectCategory={handleSelectGoalCategory}
@@ -328,16 +314,66 @@ export default function App() {
                 onDeleteGoal={handleDeleteGoal}
                 onStartSip={handleStartSip}
               />
-            ) : (
-              <RetirementPlanner 
-                assets={assets} 
+            )}
+
+            {/* 2. Create a New Goal (the grid cards, always on top below actual active goals) */}
+            <GoalsPlanner
+              mode="templates"
+              goals={goals}
+              assets={assets}
+              onSelectCategory={handleSelectGoalCategory}
+              onEditGoal={handleEditGoal}
+              onDeleteGoal={handleDeleteGoal}
+              onStartSip={handleStartSip}
+            />
+
+            {/* 3. AI Copilot Search Bar */}
+            <div className="space-y-4">
+              <NaturalLanguageBar
+                goals={goals}
+                assets={assets}
                 profile={profile}
+                onSaveGoal={handleSaveGoal}
                 onUpdateProfile={handleUpdateProfile}
-                />
-              )}
-  
+                setActivePlanningTab={handleSetPlanningTabFromCopilot}
+              />
             </div>
-          )}
+
+            {/* 4. Adaptive projections graph showing Nominals & inflation adjustments */}
+            <NetWorthGraph
+              currentAge={profile.currentAge}
+              retirementAge={profile.retirementAge}
+              initialNetWorth={totalNetWorth}
+              weightedGrowthRate={weightedGrowthRate}
+            />
+  
+          </div>
+        )}
+
+        {/* ==================== SCREEN 3: RETIREMENT PLANNING ==================== */}
+        {activeView === 3 && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+                  <Landmark className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-slate-900 text-base sm:text-lg font-bold tracking-tight">Retirement Planning</h2>
+                  <p className="text-slate-500 text-xs font-semibold">
+                    Configure your corpus milestones, working timeline, and compound your wealth with real-time inflation index matching.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <RetirementPlanner 
+              assets={assets} 
+              profile={profile}
+              onUpdateProfile={handleUpdateProfile}
+            />
+          </div>
+        )}
   
         </main>
   
@@ -350,6 +386,7 @@ export default function App() {
           onSaveGoal={handleSaveGoal}
           editingGoal={editingGoal}
           goals={goals}
+          onStartSip={handleStartSip}
         />
 
         {/* 4. Global interactive Profile & Age customization modal */}

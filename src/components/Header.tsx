@@ -49,31 +49,6 @@ export default function Header({ userName, userAge, onNavigate, activeView, onEd
 
         {/* Center/Right: navigation & metrics */}
         <div className="flex items-center gap-2 sm:gap-4">
-          <div className="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-0.5">
-            <button
-              onClick={() => onNavigate(1)}
-              className={`px-3.5 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all duration-200 ${
-                activeView === 1
-                  ? "bg-white text-brand shadow-xs font-bold"
-                  : "text-slate-500 hover:text-slate-900"
-              }`}
-              id="nav-nav1-btn"
-            >
-              My net worth
-            </button>
-            <button
-              onClick={() => onNavigate(2)}
-              className={`px-3.5 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all duration-200 ${
-                activeView === 2
-                  ? "bg-white text-brand shadow-xs font-bold"
-                  : "text-slate-500 hover:text-slate-900"
-              }`}
-              id="nav-nav2-btn"
-            >
-              Financial goals
-            </button>
-          </div>
-
           <div 
             onClick={onEditProfile}
             className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-brand bg-brand-light hover:bg-brand/15 border border-brand/20 rounded-md py-1.5 px-2 sm:px-3 cursor-pointer transition-all active:scale-95 shadow-3xs"

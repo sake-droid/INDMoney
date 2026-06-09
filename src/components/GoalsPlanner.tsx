@@ -15,6 +15,7 @@ interface GoalsPlannerProps {
   onEditGoal: (goal: Goal) => void;
   onDeleteGoal: (id: string) => void;
   onStartSip: (goal: Goal, recommendedAmount: number) => void;
+  mode?: "active" | "templates" | "all";
 }
 
 export default function GoalsPlanner({
@@ -24,7 +25,9 @@ export default function GoalsPlanner({
   onEditGoal,
   onDeleteGoal,
   onStartSip,
+  mode = "all",
 }: GoalsPlannerProps) {
+  const [selectedDetailGoal, setSelectedDetailGoal] = React.useState<Goal | null>(null);
   
   // Icon picker helper
   const renderIcon = (name: string, colorClass: string = "text-brand") => {
@@ -37,20 +40,23 @@ export default function GoalsPlanner({
     return <Component className={`w-5 h-5 ${colorClass} pointer-events-none`} />;
   };
 
-  // Pre-configured category list. Just title categories with no initial price amounts
+  // Pre-configured category list tailored for compact square templates
   const categoryCards = [
-    { category: "Buying a car", icon: "Car", desc: "Purchase premium mobility options" },
-    { category: "Planning a trip", icon: "PlaneTakeoff", desc: "Domestic & global vacation checklists" },
-    { category: "Buying a house", icon: "Home", desc: "Real estate investments & mortgage planning" },
-    { category: "Getting married", icon: "Gift", desc: "Weddings, banquets, and celebration savings" },
-    { category: "Custom", icon: "Milestone", desc: "Bespoke customizable long-term options" },
+    { category: "Buying a car", displayTitle: "Buying Car", icon: "Car" },
+    { category: "Planning a trip", displayTitle: "Planning Trip", icon: "PlaneTakeoff" },
+    { category: "Buying a house", displayTitle: "Buying House", icon: "Home" },
+    { category: "Getting married", displayTitle: "Getting Married", icon: "Gift" },
+    { category: "Custom", displayTitle: "Custom Goal", icon: "Milestone" },
   ];
+
+  const showActive = mode === "all" || mode === "active";
+  const showTemplates = mode === "all" || mode === "templates";
 
   return (
     <div className="space-y-8">
       
       {/* 1. MY GOALS SECTION (Priority 1) - ONLY rendered if there are goals */}
-      {(() => {
+      {showActive && (() => {
         const surplusGoals = goals.filter(g => g.futureValueAllocated > g.targetAmount);
         const deficitGoals = goals.filter(g => g.futureValueAllocated < g.targetAmount);
 
@@ -58,10 +64,7 @@ export default function GoalsPlanner({
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-slate-900 text-lg font-bold tracking-tight">Active life roadmap goals</h3>
-                <p className="text-slate-500 text-xs mt-0.5">
-                  Review and audit allocations earmarked from current portfolio holdings.
-                </p>
+                <h3 className="text-slate-900 text-base sm:text-lg font-bold tracking-tight">My Goals</h3>
               </div>
               <span className="text-xs bg-brand-light border border-brand/20 text-brand font-extrabold px-3 py-1 rounded-full font-sans">
                 {goals.length} earmarked plan{goals.length > 1 ? "s" : ""}
@@ -103,268 +106,378 @@ export default function GoalsPlanner({
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {goals.map((goal) => {
-              let allocationName = "";
-              if (goal.allocations && goal.allocations.length > 0) {
-                const uniqueAssetNames = Array.from(new Set(
-                  goal.allocations.map((al) => {
-                    const asset = assets.find((a) => a.id === al.assetId);
-                    return asset ? asset.name : "";
-                  }).filter(Boolean)
-                ));
-
-                if (uniqueAssetNames.length === 1) {
-                  const firstAlloc = goal.allocations[0];
-                  const asset = assets.find((a) => a.id === firstAlloc.assetId);
-                  if (asset && goal.allocations.length === asset.subAssets.length) {
-                    allocationName = `all ${asset.name.toLowerCase()}`;
-                  } else if (goal.allocations.length === 1) {
-                    const sub = asset?.subAssets.find((s) => s.id === firstAlloc.subAssetId);
-                    allocationName = sub ? `${sub.name}` : `${asset?.name}`;
-                  } else {
-                    allocationName = `${goal.allocations.length} ${asset?.name.toLowerCase()} funds`;
-                  }
-                } else {
-                  allocationName = uniqueAssetNames.join(" + ");
-                }
-              } else {
-                const matchedAsset = assets.find((a) => a.id === goal.allocatedAssetId);
-                const matchedSubAsset = goal.allocatedSubAssetId === "all" 
-                  ? null 
-                  : matchedAsset?.subAssets.find((sa) => sa.id === goal.allocatedSubAssetId);
-                  
-                allocationName = matchedSubAsset 
-                  ? `${matchedSubAsset.name}` 
-                  : `${matchedAsset?.name || "All portfolio"}`;
-              }
-
-              const currentCommitted = goal.currentValueAllocated;
-              const earmarkTarget = goal.downPayment !== undefined ? goal.downPayment : goal.targetAmount;
-              const loanAmountVal = goal.loanAmount !== undefined ? goal.loanAmount : 0;
-              const progressPercentage = earmarkTarget > 0 ? Math.min(100, (currentCommitted / earmarkTarget) * 100) : 100;
-              const isFundSufficient = goal.futureValueAllocated >= earmarkTarget;
-
-              // Calculate specific nominal compounding rate for this goal to suggest SIP
-              let nominalRateVal = 10; // default rate
-              if (goal.allocations && goal.allocations.length > 0) {
-                const subAssetsList: { value: number; growthRate: number }[] = [];
-                assets.forEach((asset) => {
-                  asset.subAssets.forEach((sub) => {
-                    if (goal.allocations.some((al) => al.subAssetId === sub.id)) {
-                      subAssetsList.push(sub);
-                    }
-                  });
-                });
-                const totalVal = subAssetsList.reduce((sum, item) => sum + item.value, 0);
-                if (totalVal > 0) {
-                  const weightedYield = subAssetsList.reduce((sum, item) => sum + (item.value * item.growthRate), 0);
-                  nominalRateVal = weightedYield / totalVal;
-                }
-              }
-              const monthlySIPNeeded = calculateMonthlySIP(goal.shortfall, nominalRateVal, goal.durationYears);
-
-              return (
-                <div 
-                  key={goal.id} 
-                  className="bg-white p-5 rounded-2xl border border-slate-200 flex flex-col justify-between gap-5 relative overflow-hidden group hover:border-brand/40 hover:shadow-md shadow-xs transition-all duration-300"
-                >
-                  {/* Decorative background visual badge */}
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-bl-full pointer-events-none -mr-4 -mt-4 transition-all group-hover:scale-110"></div>
-
-                  {/* Title block */}
-                  <div className="flex items-start justify-between gap-3 relative z-10">
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0 shadow-3xs">
-                        {renderIcon(goal.iconName, "text-brand")}
+            <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 pt-1">
+              {goals.map((goal) => {
+                return (
+                  <div
+                    key={goal.id}
+                    onClick={() => setSelectedDetailGoal(goal)}
+                    className="bg-white p-3.5 rounded-2xl border border-slate-200/90 hover:border-brand/40 hover:shadow-3xs cursor-pointer transition-all duration-200 flex items-center justify-between gap-3 group relative select-none"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-brand-light flex items-center justify-center shrink-0 border border-brand/5 group-hover:scale-105 transition-transform duration-200">
+                        {renderIcon(goal.iconName, "text-brand w-4.5 h-4.5")}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-slate-900 text-sm font-extrabold tracking-tight truncate">
-                            {goal.title}
-                          </h4>
-                          {goal.activeSipAmount && goal.activeSipAmount > 0 && (
-                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[9px] px-1.5 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                              SIP Active: {formatIndianCurrency(goal.activeSipAmount, true)}/mo
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-slate-500 text-[10.5px] uppercase tracking-wider block font-semibold mt-0.5 truncate">
-                          Backing: <span className="text-brand font-bold">{allocationName}</span>
+                        <h4 className="text-slate-900 text-xs font-bold truncate leading-tight group-hover:text-brand transition-colors">
+                          {goal.title}
+                        </h4>
+                        <span className="text-brand text-[11px] font-extrabold font-mono block mt-0.5 leading-none">
+                          {formatIndianCurrency(goal.targetAmount)}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex gap-1.5 shrink-0">
-                      <button
-                        onClick={() => onEditGoal(goal)}
-                        className="px-3 py-1.5 text-3xs rounded-lg bg-slate-50 hover:bg-brand hover:text-white text-slate-700 hover:border-brand font-bold border border-slate-200 cursor-pointer transition-all shadow-3xs active:scale-95 text-center leading-none"
-                        title="Edit goal"
-                      >
-                        Adjust
-                      </button>
-                      <button
-                        onClick={() => onDeleteGoal(goal.id)}
-                        className="px-3 py-1.5 text-3xs rounded-lg bg-red-50/60 hover:bg-rose-600 hover:text-white border border-rose-100 text-rose-600 font-bold cursor-pointer transition-all shadow-3xs active:scale-95 text-center leading-none"
-                        title="Delete goal"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteGoal(goal.id);
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-red-650 hover:bg-red-50 rounded-lg shrink-0 transition-all cursor-pointer active:scale-95"
+                      title="Delete Goal"
+                    >
+                      <Icons.Trash2 className="w-3.5 h-3.5 pointer-events-none" />
+                    </button>
                   </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
-                  {/* Progressive Milestone gauge bar */}
-                  <div className="space-y-2 relative z-10">
-                    <div className="flex justify-between items-baseline text-3xs font-semibold">
-                      <span className="text-slate-400 uppercase tracking-widest">
-                        Committed capital base
-                      </span>
-                      <span className="text-slate-800 font-bold font-sans">
-                        {formatIndianCurrency(currentCommitted, true)} of {formatIndianCurrency(earmarkTarget, true)}
-                      </span>
-                    </div>
-                    
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden relative border border-slate-200/40">
-                      <div 
-                        className="h-full bg-brand rounded-full transition-all duration-500"
-                        style={{ width: `${progressPercentage}%` }}
-                      ></div>
-                    </div>
-                    
-                    <div className="flex justify-between items-center text-[11px] font-semibold">
-                      <span className="text-slate-500">
-                        Cover ratio: <b className="text-brand font-black">{progressPercentage.toFixed(0)}%</b>
-                      </span>
-                      <span className="text-slate-400 text-3xs uppercase tracking-wider">
-                        Horizon: <b className="text-slate-700">{goal.durationYears} years</b>
-                      </span>
-                    </div>
+      {/* 2. GOAL CATEGORIES SECTION */}
+      {showTemplates && (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-slate-900 text-base sm:text-lg font-bold tracking-tight">Create a New Goal</h3>
+          </div>
 
-                    {/* Split Details badge */}
-                    {loanAmountVal > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-x-2.5 gap-y-1 p-2 bg-slate-50 border border-slate-200/60 rounded-xl text-[10px]">
-                        <span className="text-violet-700 font-extrabold flex items-center gap-1 shrink-0">
-                          <Icons.BadgePercent className="w-3.5 h-3.5 text-violet-500" />
-                          Down payment: <b>{formatIndianCurrency(earmarkTarget, true)}</b>
-                        </span>
-                        <span className="text-slate-350 shrink-0">|</span>
-                        <span className="text-cyan-700 font-extrabold flex items-center gap-1 shrink-0">
-                          <Icons.Landmark className="w-3.5 h-3.5 text-cyan-500" />
-                          Loan: <b>{formatIndianCurrency(loanAmountVal, true)}</b>
-                        </span>
-                      </div>
-                    )}
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3.5 pt-1">
+            {categoryCards.map((card) => {
+              return (
+                <div
+                  key={card.category}
+                  onClick={() => onSelectCategory(card.category)}
+                  className="bg-white border border-slate-200 hover:border-brand/40 hover:bg-brand-light/10 rounded-2xl p-4 aspect-square w-full cursor-pointer transition-all duration-300 group flex flex-col justify-between items-start shadow-3xs hover:shadow-xs relative"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 group-hover:bg-brand-light/30 border border-slate-200 group-hover:border-brand/20 flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 duration-200 shadow-3xs">
+                    {renderIcon(card.icon, "text-slate-400 group-hover:text-brand")}
                   </div>
-
-                  {/* Future Compounding Real Readout */}
-                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2 relative z-10">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500 text-3xs uppercase font-bold tracking-wider">Estimated real future value</span>
-                      <span className={`text-sm font-extrabold font-sans ${isFundSufficient ? "text-emerald-700" : "text-amber-700"}`}>
-                        {formatIndianCurrency(goal.futureValueAllocated)}
-                      </span>
-                    </div>
-
-                    <p className="text-[10px] text-slate-400 text-right leading-relaxed font-semibold">
-                      * Real projection value includes deductible 6.0% inflation index compounding.
-                    </p>
-
-                    {/* Real-time Loan EMI & SWP Arbitrage Math Block */}
-                    {loanAmountVal > 0 && (
-                      <div className="p-3 bg-gradient-to-br from-cyan-50/70 to-emerald-50/50 border border-cyan-150 rounded-xl space-y-2 text-[10px] sm:text-[10.5px] leading-relaxed">
-                        <div className="flex items-center gap-1.5 text-cyan-950 font-black uppercase text-[10px] tracking-wide">
-                          <Icons.Activity className="w-3.5 h-3.5 text-cyan-600 animate-pulse" />
-                          <span>Debt SWP Arbitrage Pathway</span>
-                        </div>
-                        <p className="text-slate-700">
-                          A loan of <b className="text-slate-800">{formatIndianCurrency(loanAmountVal)}</b> at 8% p.a. results in a monthly EMI of <b className="text-cyan-950 font-extrabold">{formatIndianCurrency(calculateEMI(loanAmountVal, 8, goal.durationYears))}/mo</b> over {goal.durationYears} years.
-                        </p>
-                        <p className="text-emerald-800 font-semibold bg-emerald-50/60 p-2 border border-emerald-100 rounded-lg">
-                          💡 <b>Smart Move</b>: Instead of outright cash payouts, set up a <b>Systematic Withdrawal Plan (SWP)</b> from your Mutual Funds compounding at 12% p.a. You only need an initial corpus of <b className="text-slate-900 font-extrabold">{formatIndianCurrency(calculateSwpCorpusRequired(calculateEMI(loanAmountVal, 8, goal.durationYears), 12, goal.durationYears))}</b> today to fully fund all repayments, keeping <b className="text-emerald-900 font-extrabold">{formatIndianCurrency(loanAmountVal - calculateSwpCorpusRequired(calculateEMI(loanAmountVal, 8, goal.durationYears), 12, goal.durationYears))} ({((1 - calculateSwpCorpusRequired(calculateEMI(loanAmountVal, 8, goal.durationYears), 12, goal.durationYears) / loanAmountVal) * 100).toFixed(0)}%)</b> in capital compounding in your name!
-                        </p>
-                      </div>
-                    )}
-
-                    {!isFundSufficient && (
-                      <div className="space-y-2.5 pt-1 border-t border-slate-200/50">
-                        <div className="text-[10.5px] text-rose-600 font-bold flex items-center gap-1.5">
-                          <Icons.AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0 pointer-events-none" />
-                          <span>Deficit gap shortfall: <b>{formatIndianCurrency(goal.shortfall)}</b> required</span>
-                        </div>
-                        <div className="bg-rose-50/40 p-3 border border-rose-150/40 rounded-xl space-y-2.5">
-                          <p className="text-[10.5px] text-slate-700 font-medium leading-relaxed">
-                            {goal.activeSipAmount && goal.activeSipAmount > 0 ? (
-                              <span>You have setup an active monthly SIP of <b className="text-emerald-700 font-extrabold">{formatIndianCurrency(goal.activeSipAmount)}</b> which bridges <b>{Math.min(100, Math.round((goal.activeSipAmount / monthlySIPNeeded) * 100))}%</b> of the estimated target gap shortfall.</span>
-                            ) : (
-                              <span>Suggested action: Build compounding velocity by starting a recurring monthly SIP. Invest <b className="text-brand">{formatIndianCurrency(monthlySIPNeeded)} monthly</b> to bridge the gap.</span>
-                            )}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => onStartSip(goal, monthlySIPNeeded)}
-                            className="w-full py-2.5 px-3 rounded-xl bg-brand hover:bg-brand-hover text-white text-[11px] font-extrabold uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer transition-all duration-200 active:scale-98 shadow-sm hover:shadow-md border border-brand/20"
-                          >
-                            <Icons.TrendingUp className="w-3.5 h-3.5" />
-                            <span>{goal.activeSipAmount && goal.activeSipAmount > 0 ? "Modify Active Auto-SIP" : "Start Auto SIP & Link Mandate"}</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    {isFundSufficient && (
-                      <div className="text-[10.5px] text-emerald-600 font-bold flex items-center gap-1.5 pt-1 border-t border-slate-200/50">
-                        <Icons.CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 pointer-events-none" />
-                        <span>Plan covered! Expected surplus reserves: <b>{formatIndianCurrency(goal.futureValueAllocated - earmarkTarget)}</b></span>
-                      </div>
-                    )}
+                  
+                  <div className="w-full mt-2">
+                    <span className="text-slate-900 text-xs font-bold leading-tight block group-hover:text-brand transition-colors tracking-tight">
+                      {card.displayTitle}
+                    </span>
+                    <span className="text-brand text-[10px] font-bold block mt-1 uppercase tracking-wider">
+                      Configure Goal +
+                    </span>
                   </div>
                 </div>
               );
             })}
           </div>
         </div>
-        );
-      })()}
+      )}
 
-      {/* 2. GOAL CATEGORIES SECTION */}
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-slate-900 text-lg font-bold tracking-tight">Earmark new target planning goals</h3>
-          <p className="text-slate-500 text-xs mt-0.5">
-            Select a life path template below to allocate financial portfolio funds and plan target horizons.
-          </p>
-        </div>
+      {/* 3. DETAILS MODAL POP-UP FOR INDIVIDUAL GOALS */}
+      {selectedDetailGoal && (() => {
+        const goal = selectedDetailGoal;
+        
+        let allocationName = "";
+        if (goal.allocations && goal.allocations.length > 0) {
+          const uniqueAssetNames = Array.from(new Set(
+            goal.allocations.map((al) => {
+              const asset = assets.find((a) => a.id === al.assetId);
+              return asset ? asset.name : "";
+            }).filter(Boolean)
+          ));
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4.5">
-          {categoryCards.map((card) => {
-            return (
-              <div
-                key={card.category}
-                onClick={() => onSelectCategory(card.category)}
-                className="bg-white border border-slate-200 hover:border-brand/40 hover:bg-brand-light/20 rounded-2xl p-5 cursor-pointer transition-all duration-300 group flex justify-between items-center shadow-xs hover:shadow-sm"
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-10.5 h-10.5 rounded-xl bg-slate-50 group-hover:bg-brand-light/40 border border-slate-200 group-hover:border-brand/20 flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 duration-200 shadow-3xs">
-                    {renderIcon(card.icon, "text-slate-400 group-hover:text-brand")}
+          if (uniqueAssetNames.length === 1) {
+            const firstAlloc = goal.allocations[0];
+            const asset = assets.find((a) => a.id === firstAlloc.assetId);
+            if (asset && goal.allocations.length === asset.subAssets.length) {
+              allocationName = `all ${asset.name.toLowerCase()}`;
+            } else if (goal.allocations.length === 1) {
+              const sub = asset?.subAssets.find((s) => s.id === firstAlloc.subAssetId);
+              allocationName = sub ? `${sub.name}` : `${asset?.name}`;
+            } else {
+              allocationName = `${goal.allocations.length} ${asset?.name.toLowerCase()} funds`;
+            }
+          } else {
+            allocationName = uniqueAssetNames.join(" + ");
+          }
+        } else {
+          const matchedAsset = assets.find((a) => a.id === goal.allocatedAssetId);
+          const matchedSubAsset = goal.allocatedSubAssetId === "all" 
+            ? null 
+            : matchedAsset?.subAssets.find((sa) => sa.id === goal.allocatedSubAssetId);
+            
+          allocationName = matchedSubAsset 
+            ? `${matchedSubAsset.name}` 
+            : `${matchedAsset?.name || "All portfolio"}`;
+        }
+
+        const currentCommitted = goal.currentValueAllocated;
+        const earmarkTarget = goal.downPayment !== undefined ? goal.downPayment : goal.targetAmount;
+        const loanAmountVal = goal.loanAmount !== undefined ? goal.loanAmount : 0;
+        const progressPercentage = earmarkTarget > 0 ? Math.min(100, (currentCommitted / earmarkTarget) * 100) : 100;
+        const isFundSufficient = goal.futureValueAllocated >= earmarkTarget;
+
+        // Calculate specific nominal compounding rate
+        let nominalRateVal = 10;
+        if (goal.allocations && goal.allocations.length > 0) {
+          const subAssetsList: { value: number; growthRate: number }[] = [];
+          assets.forEach((asset) => {
+            asset.subAssets.forEach((sub) => {
+              if (goal.allocations.some((al) => al.subAssetId === sub.id)) {
+                subAssetsList.push(sub);
+              }
+            });
+          });
+          const totalVal = subAssetsList.reduce((sum, item) => sum + item.value, 0);
+          if (totalVal > 0) {
+            const weightedYield = subAssetsList.reduce((sum, item) => sum + (item.value * item.growthRate), 0);
+            nominalRateVal = weightedYield / totalVal;
+          }
+        }
+        const monthlySIPNeeded = calculateMonthlySIP(goal.shortfall, nominalRateVal, goal.durationYears);
+
+        // Find Fund Y name for SWP description
+        const emiVal = calculateEMI(loanAmountVal, 8, goal.durationYears);
+        const corpusNeededVal = calculateSwpCorpusRequired(emiVal, 12, goal.durationYears);
+        let fundYName = "your Mutual Fund holdings";
+        
+        const selectedSubAssets: any[] = [];
+        if (goal.allocations && goal.allocations.length > 0) {
+          assets.forEach((cat) => {
+            cat.subAssets.forEach((sub) => {
+              const matchingAlloc = goal.allocations.find((al) => al.subAssetId === sub.id);
+              if (matchingAlloc) {
+                selectedSubAssets.push(sub);
+              }
+            });
+          });
+        }
+        
+        const sufficientSubs = selectedSubAssets.filter(item => item.value >= corpusNeededVal);
+        if (sufficientSubs.length > 0) {
+          sufficientSubs.sort((a, b) => b.value - a.value);
+          fundYName = sufficientSubs[0].name;
+        } else if (selectedSubAssets.length > 0) {
+          const sortedSelected = [...selectedSubAssets].sort((a, b) => b.value - a.value);
+          fundYName = sortedSelected[0].name;
+        } else {
+          let allSubAssets: any[] = [];
+          assets.forEach(a => {
+            a.subAssets.forEach(sa => {
+              allSubAssets.push(sa);
+            });
+          });
+          if (allSubAssets.length > 0) {
+            allSubAssets.sort((a, b) => b.value - a.value);
+            fundYName = allSubAssets[0].name;
+          }
+        }
+
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+            <div 
+              className="bg-white rounded-3xl w-full max-w-xl border border-slate-100 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl bg-brand-light flex items-center justify-center shrink-0 border border-brand/5 shadow-3xs font-sans">
+                    {renderIcon(goal.iconName, "text-brand w-5 h-5")}
                   </div>
-                  <div className="min-w-0">
-                    <span className="text-slate-900 text-sm font-bold truncate block group-hover:text-brand transition-colors tracking-tight">
-                      {card.category}
+                  <div className="min-w-0 font-sans">
+                    <h3 className="text-slate-900 font-extrabold text-sm sm:text-base tracking-tight truncate leading-tight">
+                      {goal.title}
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-0.5 font-sans">
+                      <span className="text-slate-400 text-3xs uppercase tracking-wider font-semibold">Goal Plan Target:</span>
+                      <span className="text-brand font-black text-xs font-mono">{formatIndianCurrency(goal.targetAmount)}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={() => setSelectedDetailGoal(null)}
+                  className="w-7 h-7 rounded-full hover:bg-slate-201/80 hover:text-slate-905 flex items-center justify-center text-slate-450 transition-colors cursor-pointer text-xs font-bold leading-none border border-slate-200"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Scrollable details */}
+              <div className="p-6 overflow-y-auto space-y-5 flex-1 select-none">
+                
+                {/* Active SIP Badge */}
+                {goal.activeSipAmount && goal.activeSipAmount > 0 && (
+                  <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 p-3 rounded-2xl border border-emerald-100 font-bold text-xs justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Icons.TrendingUp className="w-4 h-4 text-emerald-650" />
+                      Automatic Monthly SIP setup has been linked
                     </span>
-                    <span className="text-slate-500 text-3xs block truncate mt-0.5 font-semibold">
-                      {card.desc}
+                    <span className="font-mono bg-white px-2.5 py-1 rounded-xl shadow-3xs text-emerald-700">
+                      {formatIndianCurrency(goal.activeSipAmount)} / mo
                     </span>
+                  </div>
+                )}
+
+                {/* Backed details */}
+                <div className="space-y-1">
+                  <span className="text-3xs uppercase tracking-wider font-extrabold text-slate-400">Linked Portfolio Reservoir</span>
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/50 flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-700 truncate">{allocationName}</span>
+                    <span className="text-brand text-3xs font-extrabold uppercase bg-brand-light px-2 py-0.5 rounded-full border border-brand/5">Earmarked Assets</span>
                   </div>
                 </div>
 
-                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0 border border-slate-200 group-hover:border-brand/20 group-hover:bg-brand group-hover:text-white transition-all shadow-3xs duration-300">
-                  <Icons.Plus className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                {/* Milestone coverage slider bar info */}
+                <div className="space-y-2.5">
+                  <div className="flex justify-between items-baseline text-xs font-bold">
+                    <span className="text-slate-450 uppercase text-3xs tracking-wider font-extrabold">Earmarked Capital Pool</span>
+                    <span className="text-slate-800 font-extrabold">
+                      {formatIndianCurrency(currentCommitted, true)} Committed of {formatIndianCurrency(earmarkTarget, true)} downpayment
+                    </span>
+                  </div>
+                  
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden relative border border-slate-200/40">
+                    <div 
+                      className="h-full bg-brand rounded-full transition-all duration-300"
+                      style={{ width: `${progressPercentage}%` }}
+                    ></div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center text-2xs font-extrabold uppercase text-slate-450">
+                    <span>
+                      Cover Ratio: <b className="text-brand font-black text-xs font-sans">{progressPercentage.toFixed(0)}%</b>
+                    </span>
+                    <span>
+                      Horizon Target: <b className="text-slate-800 text-xs font-sans">{goal.durationYears} years</b>
+                    </span>
+                  </div>
+
+                  {/* Loan Components If Checked */}
+                  {loanAmountVal > 0 && (
+                    <div className="p-3.5 bg-slate-50/70 border border-slate-200 rounded-2xl flex justify-between items-center text-xs">
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Down Payment portion</span>
+                        <div className="font-extrabold text-slate-800">{formatIndianCurrency(earmarkTarget, true)}</div>
+                      </div>
+                      <div className="h-6 w-px bg-slate-200"></div>
+                      <div className="space-y-0.5 text-right">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Passive Loan Principal</span>
+                        <div className="font-black text-cyan-700">{formatIndianCurrency(loanAmountVal, true)}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Estimated Future Readout with Inflation Indexing */}
+                <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/60 space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 text-3xs uppercase font-bold tracking-widest">Compounded Projection (6% Inflation Indexed)</span>
+                    <span className={`text-sm sm:text-base font-black font-sans ${isFundSufficient ? "text-emerald-700" : "text-amber-705"}`}>
+                      {formatIndianCurrency(goal.futureValueAllocated)}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 text-right font-medium">
+                    * Includes defensive compounding factoring target rates adjusting against annual indexation.
+                  </p>
+                </div>
+
+                {/* Debt SWP Arbitrage pathway details */}
+                {loanAmountVal > 0 && (
+                  <div className="p-4 bg-gradient-to-r from-cyan-50/50 to-emerald-50/30 border border-cyan-200/40 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-800 text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                        <Icons.Landmark className="w-3.5 h-3.5 text-cyan-600" />
+                        EMI Arbitrage Pathway
+                      </span>
+                      <span className="text-rose-600 font-extrabold text-xs font-sans">
+                        {formatIndianCurrency(emiVal)} per month
+                      </span>
+                    </div>
+                    <p className="text-slate-600 text-[10.5px] leading-relaxed font-semibold">
+                      Instead of standard cash payouts, you can pay loan EMIs through SWP of <b>{formatIndianCurrency(emiVal)}</b> amount in <b className="text-cyan-950 font-black">{fundYName}</b>. Earmarking an upfront mutual fund corpus of {formatIndianCurrency(corpusNeededVal)} satisfies EMIs completely, keeping {formatIndianCurrency(loanAmountVal - corpusNeededVal)} compounding!
+                    </p>
+                  </div>
+                )}
+
+                {/* Action panel */}
+                {!isFundSufficient ? (
+                  <div className="p-4 bg-rose-50/55 border border-rose-100 rounded-2xl space-y-3.5">
+                    <div className="text-[11px] text-rose-600 font-extrabold flex items-center gap-2 font-sans">
+                      <Icons.AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                      <span>Funding Deficit Shortcut: <b>{formatIndianCurrency(goal.shortfall)}</b> remaining</span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                      Setup an active Systematic Investment Plan (SIP) of <b className="text-brand font-black">{formatIndianCurrency(monthlySIPNeeded)} monthly</b> inside those allocations to easily bridge the milestone shortfall under compounding growth.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onStartSip(goal, monthlySIPNeeded);
+                        setSelectedDetailGoal(null); // Close pop-up
+                      }}
+                      className="w-full py-2.5 px-4 rounded-xl bg-brand hover:bg-brand-hover text-white text-[11px] font-extrabold uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer transition-all duration-200 shadow-3xs active:scale-95"
+                    >
+                      <Icons.TrendingUp className="w-3.5 h-3.5" />
+                      <span>{goal.activeSipAmount && goal.activeSipAmount > 0 ? "Modify Active Auto-SIP Settings" : "Start Auto SIP & Link Mandate"}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3.5 bg-emerald-50/60 border border-emerald-150/40 rounded-2xl flex items-center gap-2.5">
+                    <Icons.CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 animate-in fade-in" />
+                    <span className="text-emerald-800 text-xs font-bold leading-tight">
+                      This goal is fully covered by current assets! Projected compounding surplus: <b className="font-extrabold">{formatIndianCurrency(goal.futureValueAllocated - earmarkTarget)}</b>
+                    </span>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 sm:justify-end justify-between items-center">
+                <button
+                  onClick={() => {
+                    onDeleteGoal(goal.id);
+                    setSelectedDetailGoal(null);
+                  }}
+                  className="py-2.5 px-4 rounded-xl text-xs font-extrabold text-rose-600 hover:text-white bg-red-50 hover:bg-rose-650 border border-rose-100 hover:border-rose-650 transition-all cursor-pointer shadow-3xs active:scale-95 flex items-center gap-1.5"
+                >
+                  <Icons.Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      onEditGoal(goal);
+                      setSelectedDetailGoal(null);
+                    }}
+                    className="py-2.5 px-4.5 rounded-xl text-white bg-brand hover:bg-brand-hover text-xs font-extrabold cursor-pointer transition-all shadow-3xs active:scale-95 flex items-center gap-1.5"
+                  >
+                    <Icons.SlidersHorizontal className="w-3.5 h-3.5 text-white" />
+                    <span>Edit Details</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedDetailGoal(null)}
+                    className="py-2.5 px-4 rounded-xl text-slate-500 hover:text-slate-900 bg-white border border-slate-200 text-xs font-bold hover:bg-slate-100 transition-all cursor-pointer shadow-3xs"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
