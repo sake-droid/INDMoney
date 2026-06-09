@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import Header from "./components/Header";
 import NetWorthCard from "./components/NetWorthCard";
 import AssetDistribution from "./components/AssetDistribution";
@@ -465,6 +466,8 @@ export default function App() {
           </div>
         </footer>
 
+        {/* Vercel Web Analytics */}
+        <Analytics />
     </div>
   );
 }
