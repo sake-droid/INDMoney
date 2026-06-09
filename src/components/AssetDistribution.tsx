@@ -73,21 +73,21 @@ export default function AssetDistribution({ assets, totalNetWorth, onUpdateAsset
   };
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+    <div className="bg-white border border-slate-200/80 rounded-2xl p-4.5 sm:p-5 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4.5">
         <div>
-          <h3 className="text-slate-900 text-lg font-bold tracking-tight">Portfolio asset allocation</h3>
-          <p className="text-slate-500 text-xs mt-1">
+          <h4 className="text-slate-900 text-base font-bold tracking-tight">Portfolio asset allocation</h4>
+          <p className="text-slate-500 text-[11px] mt-0.5">
             Breakdown of active capital holdings. Click any asset class below to audit individual fund instruments.
           </p>
         </div>
-        <span className="self-start sm:self-center text-xs font-bold text-brand bg-brand-light px-3 py-1 rounded-lg border border-brand/10">
-          {assets.length} active asset classes
+        <span className="self-start sm:self-center text-[10.5px] font-black text-brand bg-brand-light px-2.5 py-0.5 rounded-lg border border-brand/10">
+          {assets.length} categories
         </span>
       </div>
 
       {/* Main distribution grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
         {assets.map((asset) => {
           const percentage = ((asset.totalValue / totalNetWorth) * 100);
           
@@ -106,25 +106,28 @@ export default function AssetDistribution({ assets, totalNetWorth, onUpdateAsset
             >
               {/* Header section toggleable */}
               <div 
-                onClick={() => toggleExpand(asset.id)}
-                className="p-4 flex items-center justify-between cursor-pointer select-none active:bg-slate-100/60"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleExpand(asset.id);
+                }}
+                className="p-3 flex items-center justify-between cursor-pointer select-none active:bg-slate-100/60"
               >
-                <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <div 
-                    className="w-10 h-10 rounded-lg flex items-center justify-center border transition-colors group-hover:scale-105 duration-200"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center border transition-colors group-hover:scale-105 duration-200 shrink-0"
                     style={{ 
                       backgroundColor: `${asset.color}15`, 
                       borderColor: `${asset.color}35`,
                       color: asset.color
                     }}
                   >
-                    <IconComponent className="w-5 h-5 pointer-events-none" />
+                    <IconComponent className="w-4 h-4 pointer-events-none" />
                   </div>
                   <div className="min-w-0">
-                    <span className="text-slate-900 text-sm font-bold block truncate tracking-tight group-hover:text-brand transition-colors">
+                    <span className="text-slate-900 text-xs font-bold block truncate tracking-tight group-hover:text-brand transition-colors">
                       {asset.name}
                     </span>
-                    <span className="text-slate-500 text-[11px] font-semibold flex items-center gap-1.5 mt-0.5">
+                    <span className="text-slate-500 text-[10px] font-semibold flex items-center gap-1 mt-0.5 whitespace-nowrap">
                       <span>{percentage.toFixed(1)}% weight</span>
                       <span className="text-slate-300 font-normal">•</span>
                       <span className="text-brand font-bold">{asset.averageGrowthRate}% p.a.</span>
@@ -132,17 +135,17 @@ export default function AssetDistribution({ assets, totalNetWorth, onUpdateAsset
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 shrink-0">
                   <div className="text-right">
-                    <span className="text-slate-900 text-md font-extrabold block font-sans">
+                    <span className="text-slate-900 text-xs font-black block font-sans">
                       {formatIndianCurrency(asset.totalValue)}
                     </span>
                   </div>
-                  <div className="w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-slate-900 group-hover:border-slate-300 shadow-3xs transition-all pointer-events-none">
+                  <div className="w-5.5 h-5.5 rounded-md bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-slate-900 group-hover:border-slate-300 shadow-3xs transition-all pointer-events-none">
                     {isExpanded ? (
-                      <Icons.ChevronUp className="w-4 h-4" />
+                      <Icons.ChevronUp className="w-3.5 h-3.5" />
                     ) : (
-                      <Icons.ChevronDown className="w-4 h-4" />
+                      <Icons.ChevronDown className="w-3.5 h-3.5" />
                     )}
                   </div>
                 </div>
@@ -257,7 +260,7 @@ export default function AssetDistribution({ assets, totalNetWorth, onUpdateAsset
                               {sub.name}
                             </span>
                             <span className="text-slate-500 text-[10.5px] font-semibold mt-0.5">
-                              Fractional weight: <b className="text-slate-705 text-slate-700">{subPercent.toFixed(0)}%</b> • CAGR CAGR: <b className="text-brand">{sub.growthRate}% p.a.</b>
+                              Fractional weight: <b className="text-slate-705 text-slate-700">{subPercent.toFixed(0)}%</b> • CAGR: <b className="text-brand">{sub.growthRate}% p.a.</b>
                             </span>
                           </div>
                           

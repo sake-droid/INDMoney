@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
+import { Info } from "lucide-react";
 import { formatIndianCurrency, projectNetWorth, NetWorthDataPoint } from "../utils/finance";
 
 interface NetWorthGraphProps {
@@ -22,6 +23,7 @@ export default function NetWorthGraph({
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 600, height: 320 });
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [selectedAge, setSelectedAge] = useState<number>(50);
 
   // Generate data points up to age 80
   const data: NetWorthDataPoint[] = projectNetWorth(
@@ -119,256 +121,302 @@ export default function NetWorthGraph({
     return (maxNominal / yTicks) * i;
   });
 
-  const displayIndex = hoverIndex !== null ? hoverIndex : data.findIndex((d) => d.age === 50);
+  const displayIndex = hoverIndex !== null ? hoverIndex : data.findIndex((d) => d.age === selectedAge);
   const activePoint = displayIndex !== -1 ? data[displayIndex] : data[0];
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+      {/* Header Row */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h3 className="text-slate-900 text-lg font-bold tracking-tight">
-            Wealth projection curve
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <h3 className="text-slate-900 text-base sm:text-lg font-bold tracking-tight">
+            Wealth Projection
           </h3>
-          <p className="text-slate-500 text-xs font-semibold">
-            Compounding projection based on current weighted yield of {weightedGrowthRate.toFixed(1)}% p.a.
-          </p>
+          <div className="relative inline-block group mt-0.5 animate-pulse-subtle">
+            <button 
+              type="button"
+              className="p-1 rounded-full text-slate-400 hover:text-slate-600 focus:outline-none cursor-default"
+              aria-label="Projection Info"
+            >
+              <Info className="w-4 h-4" />
+            </button>
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 bg-slate-900 text-white text-xs p-2.5 rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50 leading-relaxed font-semibold">
+              Compounding projection based on current weighted yield of {weightedGrowthRate.toFixed(1)}% p.a.
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
+            </div>
+          </div>
         </div>
+        
         <div className="flex flex-wrap items-center gap-4 text-xs font-semibold">
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-brand inline-block pointer-events-none"></span>
+            <span className="w-3 h-3 rounded-full bg-[#1422e8] inline-block pointer-events-none"></span>
             <span className="text-slate-600">Nominal wealth</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-sky-500 inline-block pointer-events-none"></span>
+            <span className="w-3 h-3 rounded-full bg-[#0ea5e9] inline-block pointer-events-none"></span>
             <span className="text-slate-600">Real value (-6% inflation)</span>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-center">
-        {/* Render interactive graph */}
-        <div 
-          ref={containerRef} 
-          className="lg:col-span-3 h-72 sm:h-80 w-full relative select-none"
-        >
-          <svg
-            width={width}
-            height={height}
-            className="overflow-visible cursor-pointer"
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            id="growth-projection-svg"
-          >
-            <defs>
-              <linearGradient id="nominalGlow" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#1422e8" stopOpacity="0.12" />
-                <stop offset="100%" stopColor="#1422e8" stopOpacity="0" />
-              </linearGradient>
-              <linearGradient id="realGlow" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.08" />
-                <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-
-            {/* Horizontal Grid lines */}
-            {yTickValues.map((val, i) => {
-              const y = getY(val);
-              return (
-                <g key={`y-grid-${i}`} className="opacity-70">
-                  <line
-                    x1={paddingLeft}
-                    y1={y}
-                    x2={width - paddingRight}
-                    y2={y}
-                    stroke="#e2e8f0"
-                    strokeWidth={1}
-                    className="pointer-events-none"
-                  />
-                  <text
-                    x={paddingLeft - 8}
-                    y={y + 4}
-                    fill="#94a3b8"
-                    fontSize={10}
-                    textAnchor="end"
-                    fontFamily="monospace"
-                    className="pointer-events-none font-bold"
-                  >
-                    {formatIndianCurrency(val, true)}
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Vertical grid & ticks */}
-            {data.map((point, idx) => {
-              const showTick = point.age === currentAge || point.age === retirementAge || point.age % 10 === 0 || point.age === 80;
-              if (!showTick) return null;
-              
-              const x = getX(idx);
-              return (
-                <g key={`x-grid-${idx}`}>
-                  <line
-                    x1={x}
-                    y1={paddingTop}
-                    x2={x}
-                    y2={height - paddingBottom}
-                    stroke="#e2e8f0"
-                    strokeWidth={1}
-                    className="opacity-50 pointer-events-none"
-                  />
-                  <text
-                    x={x}
-                    y={height - paddingBottom + 16}
-                    fill={point.age === retirementAge ? "#1422e8" : "#94a3b8"}
-                    fontSize={10}
-                    textAnchor="middle"
-                    className="pointer-events-none font-bold"
-                  >
-                    {point.age === currentAge ? `Age 25` : `Age ${point.age}`}
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Fills underneath */}
-            {nominalAreaPath && (
-              <path
-                d={nominalAreaPath}
-                fill="url(#nominalGlow)"
-                className="pointer-events-none"
-              />
-            )}
-            {realAreaPath && (
-              <path
-                d={realAreaPath}
-                fill="url(#realGlow)"
-                className="pointer-events-none"
-              />
-            )}
-
-            {/* Drawing Lines */}
-            {realLinePath && (
-              <path
-                d={realLinePath}
-                fill="none"
-                stroke="#0ea5e9"
-                strokeWidth={2}
-                strokeDasharray="2 2"
-                className="pointer-events-none"
-              />
-            )}
-            {nominalLinePath && (
-              <path
-                d={nominalLinePath}
-                fill="none"
-                stroke="#1422e8"
-                strokeWidth={3}
-                className="pointer-events-none"
-              />
-            )}
-
-            {/* Vertical Tracker indicator on hover/focus */}
-            {activePoint && (
-              <g className="pointer-events-none">
-                <line
-                  x1={getX(displayIndex)}
-                  y1={paddingTop}
-                  x2={getX(displayIndex)}
-                  y2={height - paddingBottom}
-                  stroke="#94a3b8"
-                  strokeWidth={1.5}
-                  strokeDasharray="4 4"
-                />
-                
-                {/* Nominal Point Circle */}
-                <circle
-                  cx={getX(displayIndex)}
-                  cy={getY(activePoint.nominalValue)}
-                  r={6}
-                  fill="#1422e8"
-                  stroke="#ffffff"
-                  strokeWidth={2.5}
-                />
-                
-                {/* Real Point Circle */}
-                <circle
-                  cx={getX(displayIndex)}
-                  cy={getY(activePoint.realValue)}
-                  r={5}
-                  fill="#0ea5e9"
-                  stroke="#ffffff"
-                  strokeWidth={2}
-                />
-                
-                {/* Retirement highlight if active is retirement age */}
-                {activePoint.age === retirementAge && (
-                  <g>
-                    <rect
-                      x={getX(displayIndex) - 45}
-                      y={paddingTop + 5}
-                      width={90}
-                      height={20}
-                      rx={4}
-                      fill="#eef1ff"
-                      stroke="#1422e8"
-                      strokeWidth={1}
-                    />
-                    <text
-                      x={getX(displayIndex)}
-                      y={paddingTop + 18}
-                      fill="#1422e8"
-                      fontSize={9}
-                      fontWeight="extrabold"
-                      textAnchor="middle"
-                    >
-                      Retirement age
-                    </text>
-                  </g>
-                )}
-              </g>
-            )}
-          </svg>
+      {/* Target & Values Row - Single Horizontal Line */}
+      <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3 sm:py-2.5 sm:px-4 flex flex-col sm:flex-row items-center justify-between gap-4.5 shadow-3xs">
+        {/* Interactive Age Selector */}
+        <div className="flex items-center gap-2.5">
+          <span className="text-slate-400 text-[10px] font-black uppercase tracking-wider select-none">Projection Target:</span>
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg shadow-3xs px-2 py-0.5">
+            <span className="text-slate-500 text-xs font-semibold select-none">Age</span>
+            <input
+              type="number"
+              min={currentAge}
+              max={80}
+              value={selectedAge}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val)) {
+                  setSelectedAge(Math.max(currentAge, Math.min(80, val)));
+                }
+              }}
+              className="w-8 bg-transparent text-slate-900 text-sm font-black text-center focus:outline-none select-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-sans"
+            />
+            {/* Quick Increment/Decrement Buttons */}
+            <div className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                onClick={() => setSelectedAge((prev) => Math.min(80, prev + 1))}
+                className="text-slate-400 hover:text-slate-705 p-0.5 h-3.5 w-4.5 flex items-center justify-center hover:bg-slate-100 rounded transition-all leading-none"
+              >
+                <span className="text-[10px] leading-none font-bold">▲</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedAge((prev) => Math.max(currentAge, prev - 1))}
+                className="text-slate-400 hover:text-slate-705 p-0.5 h-3.5 w-4.5 flex items-center justify-center hover:bg-slate-100 rounded transition-all leading-none"
+              >
+                <span className="text-[10px] leading-none font-bold">▼</span>
+              </button>
+            </div>
+          </div>
+          <span className="text-brand text-xs font-extrabold font-mono">({activePoint.year})</span>
         </div>
 
-        {/* Readout stats box on the right */}
-        <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 flex flex-col gap-5 justify-center h-full shadow-3xs">
-          <div>
-            <span className="text-slate-400 text-[9px] font-bold uppercase tracking-wider block mb-1">
-              {hoverIndex !== null ? "Selected highlight" : "Standard milestone"}
+        {/* Wealth Value readouts in the same row */}
+        <div className="flex flex-row flex-wrap items-center gap-4 sm:gap-6 justify-end">
+          {/* Nominal Wealth */}
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 text-[10px] font-black uppercase tracking-wider select-none">Nominal Wealth</span>
+            <span className="text-brand text-base sm:text-lg font-black font-sans leading-none bg-brand-light/30 px-2.5 py-1.5 rounded-lg border border-brand/5 shadow-3xs">
+              {formatIndianCurrency(activePoint.nominalValue)}
             </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-slate-900 text-2xl font-extrabold">Age {activePoint.age}</span>
-              <span className="text-brand text-xs font-bold">({activePoint.year})</span>
-            </div>
-            <p className="text-slate-500 text-[10px] mt-1 font-semibold leading-relaxed">
-              At this node, your portfolio compounds to both raw nominal limits and real buying rates.
-            </p>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <span className="text-slate-400 text-[9px] font-bold uppercase tracking-wider block mb-0.5">
-                Nominal future wealth
-              </span>
-              <div className="text-brand text-xl font-extrabold font-sans">
-                {formatIndianCurrency(activePoint.nominalValue)}
-              </div>
-              <span className="text-slate-400 text-[9px] font-bold">Accumulated balance</span>
-            </div>
+          {/* Separator */}
+          <span className="hidden sm:inline text-slate-205 text-slate-200">|</span>
 
-            <div className="border-t border-slate-200 pt-3">
-              <span className="text-slate-400 text-[9px] font-bold uppercase tracking-wider block mb-0.5">
-                Real buying value
-              </span>
-              <div className="text-sky-650 text-sky-600 text-xl font-extrabold font-sans">
-                {formatIndianCurrency(activePoint.realValue)}
-              </div>
-              <span className="text-slate-400 text-[9px] font-bold leading-none">
-                Constant adjusted to year (buying power)
-              </span>
-            </div>
+          {/* Real Value */}
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 text-[10px] font-black uppercase tracking-wider select-none">Real Buying Value</span>
+            <span className="text-sky-700 text-base sm:text-lg font-black font-sans leading-none bg-sky-50 px-2.5 py-1.5 rounded-lg border border-sky-100 shadow-3xs">
+              {formatIndianCurrency(activePoint.realValue)}
+            </span>
           </div>
         </div>
+      </div>
+
+      {/* Render interactive graph */}
+      <div 
+        ref={containerRef} 
+        className="w-full h-72 sm:h-80 relative select-none"
+      >
+        <svg
+          width={width}
+          height={height}
+          className="overflow-visible cursor-pointer"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          onClick={(e) => {
+            if (!containerRef.current) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const xMouse = e.clientX - rect.left - paddingLeft;
+            const proportionalX = xMouse / chartWidth;
+            let index = Math.round(proportionalX * (data.length - 1));
+            index = Math.max(0, Math.min(data.length - 1, index));
+            const point = data[index];
+            if (point) {
+              setSelectedAge(point.age);
+            }
+          }}
+          id="growth-projection-svg"
+        >
+          <defs>
+            <linearGradient id="nominalGlow" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#1422e8" stopOpacity="0.12" />
+              <stop offset="100%" stopColor="#1422e8" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="realGlow" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {/* Horizontal Grid lines */}
+          {yTickValues.map((val, i) => {
+            const y = getY(val);
+            return (
+              <g key={`y-grid-${i}`} className="opacity-70">
+                <line
+                  x1={paddingLeft}
+                  y1={y}
+                  x2={width - paddingRight}
+                  y2={y}
+                  stroke="#e2e8f0"
+                  strokeWidth={1}
+                  className="pointer-events-none"
+                />
+                <text
+                  x={paddingLeft - 8}
+                  y={y + 4}
+                  fill="#94a3b8"
+                  fontSize={10}
+                  textAnchor="end"
+                  fontFamily="monospace"
+                  className="pointer-events-none font-bold"
+                >
+                  {formatIndianCurrency(val, true)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Vertical grid & ticks */}
+          {data.map((point, idx) => {
+            const showTick = point.age === currentAge || point.age === retirementAge || point.age % 10 === 0 || point.age === 80;
+            if (!showTick) return null;
+            
+            const x = getX(idx);
+            return (
+              <g key={`x-grid-${idx}`}>
+                <line
+                  x1={x}
+                  y1={paddingTop}
+                  x2={x}
+                  y2={height - paddingBottom}
+                  stroke="#e2e8f0"
+                  strokeWidth={1}
+                  className="opacity-50 pointer-events-none"
+                />
+                <text
+                  x={x}
+                  y={height - paddingBottom + 16}
+                  fill={point.age === retirementAge ? "#1422e8" : "#94a3b8"}
+                  fontSize={10}
+                  textAnchor="middle"
+                  className="pointer-events-none font-bold"
+                >
+                  {point.age === currentAge ? `Age 25` : `Age ${point.age}`}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Fills underneath */}
+          {nominalAreaPath && (
+            <path
+              d={nominalAreaPath}
+              fill="url(#nominalGlow)"
+              className="pointer-events-none"
+            />
+          )}
+          {realAreaPath && (
+            <path
+              d={realAreaPath}
+              fill="url(#realGlow)"
+              className="pointer-events-none"
+            />
+          )}
+
+          {/* Drawing Lines */}
+          {realLinePath && (
+            <path
+              d={realLinePath}
+              fill="none"
+              stroke="#0ea5e9"
+              strokeWidth={2}
+              strokeDasharray="2 2"
+              className="pointer-events-none"
+            />
+          )}
+          {nominalLinePath && (
+            <path
+              d={nominalLinePath}
+              fill="none"
+              stroke="#1422e8"
+              strokeWidth={3}
+              className="pointer-events-none"
+            />
+          )}
+
+          {/* Vertical Tracker indicator on hover/focus */}
+          {activePoint && (
+            <g className="pointer-events-none">
+              <line
+                x1={getX(displayIndex)}
+                y1={paddingTop}
+                x2={getX(displayIndex)}
+                y2={height - paddingBottom}
+                stroke="#94a3b8"
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+              />
+              
+              {/* Nominal Point Circle */}
+              <circle
+                cx={getX(displayIndex)}
+                cy={getY(activePoint.nominalValue)}
+                r={6}
+                fill="#1422e8"
+                stroke="#ffffff"
+                strokeWidth={2.5}
+              />
+              
+              {/* Real Point Circle */}
+              <circle
+                cx={getX(displayIndex)}
+                cy={getY(activePoint.realValue)}
+                r={5}
+                fill="#0ea5e9"
+                stroke="#ffffff"
+                strokeWidth={2}
+              />
+              
+              {/* Retirement highlight if active is retirement age */}
+              {activePoint.age === retirementAge && (
+                <g>
+                  <rect
+                    x={getX(displayIndex) - 45}
+                    y={paddingTop + 5}
+                    width={90}
+                    height={20}
+                    rx={4}
+                    fill="#eef1ff"
+                    stroke="#1422e8"
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={getX(displayIndex)}
+                    y={paddingTop + 18}
+                    fill="#1422e8"
+                    fontSize={9}
+                    fontWeight="extrabold"
+                    textAnchor="middle"
+                  >
+                    Retirement age
+                  </text>
+                </g>
+              )}
+            </g>
+          )}
+        </svg>
       </div>
     </div>
   );
