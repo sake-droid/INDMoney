@@ -427,11 +427,11 @@ export default function NaturalLanguageBar({
 
   return (
     <div className="bg-white border border-slate-200/80 p-3 sm:p-4 rounded-3xl shadow-xs relative overflow-hidden transition-all duration-300">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500"></div>
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand to-brand-hover"></div>
       
       {/* AI suggested tag above the search bar */}
       <div className="flex items-center gap-1.5 mb-2.5 select-none self-start">
-        <span className="bg-violet-100/85 border border-violet-200/40 text-violet-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+        <span className="bg-brand-light border border-brand/20 text-brand text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
           AI Suggested
         </span>
       </div>
@@ -442,7 +442,7 @@ export default function NaturalLanguageBar({
           
           {/* Sparkles Icon Inside Bar */}
           <div className="pl-3 pr-1 text-brand shrink-0 flex items-center">
-            <Sparkles className="w-3.5 h-3.5 text-violet-500 animate-pulse" />
+            <Sparkles className="w-3.5 h-3.5 text-brand animate-pulse" />
           </div>
 
           <input

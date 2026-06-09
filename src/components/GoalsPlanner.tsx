@@ -307,6 +307,22 @@ export default function GoalsPlanner({
           };
         });
 
+        // Determine recommended sub-asset for incremental SIP
+        let bestSubAssetRec: any = null;
+        if (selectedSubAssets.length > 0) {
+          bestSubAssetRec = [...selectedSubAssets].sort((a, b) => b.growthRate - a.growthRate)[0];
+        } else {
+          let pool: any[] = [];
+          assets.forEach(cat => {
+            cat.subAssets.forEach(sub => {
+              pool.push(sub);
+            });
+          });
+          if (pool.length > 0) {
+            bestSubAssetRec = pool.sort((a, b) => b.growthRate - a.growthRate)[0];
+          }
+        }
+
         return (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
             <div 
@@ -406,13 +422,13 @@ export default function GoalsPlanner({
                     <div className="px-4 py-1.5 bg-white border-t border-slate-150 divide-y divide-slate-100 max-h-36 overflow-y-auto">
                       {selectedSubAssetsWithParent.length > 0 ? (
                         selectedSubAssetsWithParent.map((item, idx) => (
-                          <div key={idx} className="py-2 flex justify-between items-center text-xs">
-                            <div className="min-w-0 pr-2">
-                              <span className="font-bold text-slate-800 block truncate">{item.name}</span>
-                              <span className="text-[9px] text-slate-450 font-semibold uppercase tracking-wider">{item.parentName}</span>
-                            </div>
-                            <span className="font-bold text-slate-700 shrink-0 font-mono">{formatIndianCurrency(item.value)}</span>
-                          </div>
+                           <div key={idx} className="py-2 flex justify-between items-center text-xs">
+                             <div className="min-w-0 pr-2">
+                               <span className="font-bold text-slate-800 block truncate">{item.name}</span>
+                               <span className="text-[9px] text-slate-450 font-semibold uppercase tracking-wider">{item.parentName}</span>
+                             </div>
+                             <span className="font-bold text-slate-700 shrink-0 font-mono">{formatIndianCurrency(item.value)}</span>
+                           </div>
                         ))
                       ) : (
                         <div className="py-2 text-center text-xs font-bold text-slate-400">
@@ -425,26 +441,34 @@ export default function GoalsPlanner({
 
                 {/* SIP Flow block or Fully Funded feedback */}
                 {!isFundSufficient ? (
-                  <div className="p-4 bg-rose-50/50 border border-rose-100 rounded-2xl flex flex-col sm:flex-row gap-4 justify-between items-center font-sans">
-                    <div className="text-left shrink-0">
-                      <span className="text-[10px] text-rose-500 font-extrabold uppercase tracking-wider block">Monthly SIP Needed</span>
-                      <span className="text-base font-black text-rose-700 font-mono">
-                        {formatIndianCurrency(monthlySIPNeeded)}/mo
-                      </span>
+                  <div className="space-y-1.5">
+                    <div className="p-4 bg-rose-50/50 border border-rose-100 rounded-2xl flex flex-col sm:flex-row gap-4 justify-between items-center font-sans">
+                      <div className="text-left shrink-0">
+                        <span className="text-[10px] text-rose-500 font-extrabold uppercase tracking-wider block">Monthly SIP Needed</span>
+                        <span className="text-base font-black text-rose-700 font-mono">
+                          {formatIndianCurrency(monthlySIPNeeded)}/mo
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onStartSip(goal, monthlySIPNeeded);
+                          setSelectedDetailGoal(null);
+                        }}
+                        className="w-full sm:w-auto py-2.5 px-4 bg-brand hover:bg-brand-hover text-white text-[11px] font-extrabold uppercase tracking-widest rounded-xl shadow-3xs transition-all active:scale-95 leading-none cursor-pointer"
+                      >
+                        {goal.activeSipAmount && goal.activeSipAmount > 0 ? "Modify SIP" : "Start SIP"}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onStartSip(goal, monthlySIPNeeded);
-                        setSelectedDetailGoal(null);
-                      }}
-                      className="w-full sm:w-auto py-2.5 px-4 bg-brand hover:bg-brand-hover text-white text-[11px] font-extrabold uppercase tracking-widest rounded-xl shadow-3xs transition-all active:scale-95 leading-none cursor-pointer"
-                    >
-                      {goal.activeSipAmount && goal.activeSipAmount > 0 ? "Modify SIP" : "Start SIP"}
-                    </button>
+                    {bestSubAssetRec && (
+                      <div className="text-[10px] font-bold text-slate-500 flex justify-between items-center px-1">
+                        <span>Best incremental asset target:</span>
+                        <span className="text-brand font-black">{bestSubAssetRec.name} ({bestSubAssetRec.growthRate}% p.a.)</span>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-2 font-sans text-xs text-emerald-800 font-semibold">
+                  <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-2 font-sans text-xs text-emerald-800 font-semibold font-bold">
                     <Icons.CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                     <span>Goal covered by current assets! Projected surplus: {formatIndianCurrency(goal.futureValueAllocated - earmarkTarget)}</span>
                   </div>

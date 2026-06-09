@@ -54,12 +54,12 @@ export default function SipSetupModal({
         id="sip-setup-modal"
       >
         {/* Top Gradient Accent */}
-        <div className="h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500"></div>
+        <div className="h-1.5 bg-gradient-to-r from-brand to-brand-hover"></div>
 
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-slate-150 flex justify-between items-center bg-slate-50">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-violet-600 animate-pulse"></span>
+            <span className="w-2 h-2 rounded-full bg-brand animate-pulse"></span>
             <div className="flex flex-col">
               <span className="text-slate-900 font-extrabold text-xs tracking-tight">IND SIP COMPILER</span>
               <span className="text-[10px] text-slate-500 font-bold leading-none capitalize">
@@ -77,12 +77,12 @@ export default function SipSetupModal({
 
         {/* Stepper Wizard Indicator */}
         <div className="flex justify-between items-center border-b border-slate-100 bg-slate-50/50 px-6 py-2.5 text-[10px] font-bold text-slate-400">
-          <div className={`flex items-center gap-1 ${currentStep === "amount" ? "text-violet-600" : "text-emerald-600"}`}>
+          <div className={`flex items-center gap-1 ${currentStep === "amount" ? "text-brand" : "text-emerald-600"}`}>
             <span className="w-4 h-4 rounded-full bg-slate-200/80 flex items-center justify-center text-[9px] font-black">1</span>
             <span>Configure fresh SIP</span>
           </div>
           <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-          <div className={`flex items-center gap-1 ${currentStep === "mandate" ? "text-violet-600" : (currentStep === "success" ? "text-emerald-600" : "")}`}>
+          <div className={`flex items-center gap-1 ${currentStep === "mandate" ? "text-brand" : (currentStep === "success" ? "text-emerald-600" : "")}`}>
             <span className="w-4 h-4 rounded-full bg-slate-200/80 flex items-center justify-center text-[9px] font-black">2</span>
             <span>Approve Mandate</span>
           </div>
@@ -143,7 +143,7 @@ export default function SipSetupModal({
                     <button 
                       type="button" 
                       onClick={() => setSipAmount(Math.round(defaultAmount / 100) * 100)}
-                      className="text-violet-600 hover:underline cursor-pointer"
+                      className="text-brand hover:underline cursor-pointer"
                     >
                       Recommended SIP: {formatIndianCurrency(defaultAmount, true)}
                     </button>
@@ -154,7 +154,7 @@ export default function SipSetupModal({
                 {/* Debit date configurations */}
                 <div className="space-y-1 bg-slate-50 border border-slate-200/60 p-3 rounded-xl">
                   <label className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wide flex items-center gap-1 font-sans">
-                    <Calendar className="w-3.5 h-3.5 text-violet-500" />
+                    <Calendar className="w-3.5 h-3.5 text-brand" />
                     Preferred Auto Debit Cycle Date
                   </label>
                   <p className="text-[10.5px] text-slate-500 font-medium pb-2">
@@ -181,7 +181,7 @@ export default function SipSetupModal({
                 <div className="pt-2">
                   <button
                     onClick={handleNextStep}
-                    className="w-full py-3.5 text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 rounded-xl shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                    className="w-full py-3.5 text-xs font-bold text-white bg-brand hover:bg-brand-hover rounded-xl shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
                   >
                     Proceed to Link Bank Mandate
                     <ArrowRight className="w-4 h-4" />
@@ -221,8 +221,8 @@ export default function SipSetupModal({
                         onClick={() => setSelectedBank(b.id)}
                         className={`w-full p-3 rounded-xl border flex items-center justify-between text-left cursor-pointer transition-all duration-150 ${
                           selectedBank === b.id
-                            ? "bg-violet-50 border-violet-400 text-violet-950 font-black shadow-3xs"
-                            : "bg-white hover:bg-slate-50 border-slate-200 text-slate-800"
+                            ? "bg-brand-light border-brand/45 text-slate-900 font-bold shadow-3xs"
+                            : "bg-white hover:bg-slate-55 border-slate-200 text-slate-800"
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
@@ -230,7 +230,7 @@ export default function SipSetupModal({
                           <span className="text-xs font-bold leading-none">{b.name}</span>
                         </div>
                         <div className={`w-4-4 w-4 h-4 rounded-full border flex items-center justify-center ${
-                          selectedBank === b.id ? "border-violet-500 bg-violet-600" : "border-slate-350"
+                          selectedBank === b.id ? "border-brand bg-brand" : "border-slate-350"
                         }`}>
                           {selectedBank === b.id && <div className="w-1.5 h-1.5 rounded-full bg-white"></div>}
                         </div>
@@ -279,7 +279,7 @@ export default function SipSetupModal({
                 <div className="space-y-1">
                   <h4 className="text-emerald-950 font-black text-sm tracking-tight flex items-center justify-center gap-1.5">
                     SIP Setup Complete!
-                    <Sparkles className="w-4 h-4 text-violet-500" />
+                    <Sparkles className="w-4 h-4 text-brand animate-pulse" />
                   </h4>
                   <p className="text-slate-500 text-xs font-semibold leading-relaxed max-w-xs mx-auto">
                     A monthly SIP of <b>{formatIndianCurrency(sipAmount)}</b> has been active for <b>{goal.title}</b>.
