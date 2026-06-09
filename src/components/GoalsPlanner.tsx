@@ -16,6 +16,7 @@ interface GoalsPlannerProps {
   onDeleteGoal: (id: string) => void;
   onStartSip: (goal: Goal, recommendedAmount: number) => void;
   mode?: "active" | "templates" | "all";
+  userAge?: number;
 }
 
 export default function GoalsPlanner({
@@ -26,8 +27,15 @@ export default function GoalsPlanner({
   onDeleteGoal,
   onStartSip,
   mode = "all",
+  userAge = 25,
 }: GoalsPlannerProps) {
   const [selectedDetailGoal, setSelectedDetailGoal] = React.useState<Goal | null>(null);
+  const [isAssetExpanded, setIsAssetExpanded] = React.useState(false);
+
+  const handleOpenDetails = (goal: Goal) => {
+    setIsAssetExpanded(false);
+    setSelectedDetailGoal(goal);
+  };
   
   // Icon picker helper
   const renderIcon = (name: string, colorClass: string = "text-brand") => {
@@ -36,16 +44,25 @@ export default function GoalsPlanner({
     else if (name === "PlaneTakeoff") Component = Icons.Plane;
     else if (name === "Home") Component = Icons.Home;
     else if (name === "Gift") Component = Icons.Gift;
+    else if (name === "GraduationCap") Component = Icons.GraduationCap;
+    else if (name === "Compass") Component = Icons.Compass;
+    else if (name === "Heart") Component = Icons.Heart;
     
     return <Component className={`w-5 h-5 ${colorClass} pointer-events-none`} />;
   };
 
-  // Pre-configured category list tailored for compact square templates
-  const categoryCards = [
+  // Pre-configured category list dynamically tailored for age
+  const categoryCards = userAge <= 50 ? [
     { category: "Buying a car", displayTitle: "Buying Car", icon: "Car" },
     { category: "Planning a trip", displayTitle: "Planning Trip", icon: "PlaneTakeoff" },
     { category: "Buying a house", displayTitle: "Buying House", icon: "Home" },
     { category: "Getting married", displayTitle: "Getting Married", icon: "Gift" },
+    { category: "Custom", displayTitle: "Custom Goal", icon: "Milestone" },
+  ] : [
+    { category: "Child's education", displayTitle: "Child's Education", icon: "GraduationCap" },
+    { category: "Pilgrimage", displayTitle: "Pilgrimage", icon: "Compass" },
+    { category: "Daughter's marriage", displayTitle: "Daughter's Marriage", icon: "Heart" },
+    { category: "Buying a house", displayTitle: "Buying House", icon: "Home" },
     { category: "Custom", displayTitle: "Custom Goal", icon: "Milestone" },
   ];
 
@@ -111,7 +128,7 @@ export default function GoalsPlanner({
                 return (
                   <div
                     key={goal.id}
-                    onClick={() => setSelectedDetailGoal(goal)}
+                    onClick={() => handleOpenDetails(goal)}
                     className="bg-white p-3.5 rounded-2xl border border-slate-200/90 hover:border-brand/40 hover:shadow-3xs cursor-pointer transition-all duration-200 flex items-center justify-between gap-3 group relative select-none"
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -281,178 +298,170 @@ export default function GoalsPlanner({
           }
         }
 
+        const selectedSubAssetsWithParent = selectedSubAssets.map(sub => {
+          const parent = assets.find(cat => cat.subAssets.some(sa => sa.id === sub.id));
+          return {
+            name: sub.name,
+            value: sub.value,
+            parentName: parent ? parent.name : "Portfolio Pool"
+          };
+        });
+
         return (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
             <div 
-              className="bg-white rounded-3xl w-full max-w-xl border border-slate-100 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-in zoom-in-95 duration-150"
+              className="bg-white rounded-3xl w-full max-w-md border border-slate-100 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col animate-in zoom-in-95 duration-150"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
+              <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-11 h-11 rounded-2xl bg-brand-light flex items-center justify-center shrink-0 border border-brand/5 shadow-3xs font-sans">
-                    {renderIcon(goal.iconName, "text-brand w-5 h-5")}
+                  <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center shrink-0 border border-brand/5 shadow-3xs font-sans">
+                    {renderIcon(goal.iconName, "text-brand w-4.5 h-4.5")}
                   </div>
                   <div className="min-w-0 font-sans">
-                    <h3 className="text-slate-900 font-extrabold text-sm sm:text-base tracking-tight truncate leading-tight">
+                    <h3 className="text-slate-900 font-extrabold text-sm tracking-tight truncate leading-tight">
                       {goal.title}
                     </h3>
-                    <div className="flex items-center gap-1.5 mt-0.5 font-sans">
-                      <span className="text-slate-400 text-3xs uppercase tracking-wider font-semibold">Goal Plan Target:</span>
-                      <span className="text-brand font-black text-xs font-mono">{formatIndianCurrency(goal.targetAmount)}</span>
-                    </div>
+                    <span className="text-[10px] text-slate-450 font-bold uppercase tracking-wider block">Goal Details</span>
                   </div>
                 </div>
                 
                 <button 
                   onClick={() => setSelectedDetailGoal(null)}
-                  className="w-7 h-7 rounded-full hover:bg-slate-201/80 hover:text-slate-905 flex items-center justify-center text-slate-450 transition-colors cursor-pointer text-xs font-bold leading-none border border-slate-200"
+                  className="w-7 h-7 rounded-full hover:bg-slate-200/80 hover:text-slate-900 flex items-center justify-center text-slate-400 transition-colors cursor-pointer text-xs font-bold leading-none border border-slate-200"
                 >
                   ✕
                 </button>
               </div>
 
               {/* Scrollable details */}
-              <div className="p-6 overflow-y-auto space-y-5 flex-1 select-none">
+              <div className="p-5 overflow-y-auto space-y-4 flex-1 select-none">
                 
-                {/* Active SIP Badge */}
-                {goal.activeSipAmount && goal.activeSipAmount > 0 && (
-                  <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 p-3 rounded-2xl border border-emerald-100 font-bold text-xs justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Icons.TrendingUp className="w-4 h-4 text-emerald-650" />
-                      Automatic Monthly SIP setup has been linked
-                    </span>
-                    <span className="font-mono bg-white px-2.5 py-1 rounded-xl shadow-3xs text-emerald-700">
-                      {formatIndianCurrency(goal.activeSipAmount)} / mo
-                    </span>
-                  </div>
-                )}
+                {/* Milestone Box (Target vs. Capital Allocated) */}
+                <div className="relative bg-slate-50 border border-slate-200/70 rounded-2xl p-4 sm:p-5 flex justify-between">
+                  <div className="space-y-4">
+                    {/* Target */}
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Target Milestone</span>
+                      <span className="text-sm sm:text-base font-black text-slate-900 font-mono">
+                        {formatIndianCurrency(earmarkTarget)}
+                      </span>
+                    </div>
 
-                {/* Backed details */}
-                <div className="space-y-1">
-                  <span className="text-3xs uppercase tracking-wider font-extrabold text-slate-400">Linked Portfolio Reservoir</span>
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/50 flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-700 truncate">{allocationName}</span>
-                    <span className="text-brand text-3xs font-extrabold uppercase bg-brand-light px-2 py-0.5 rounded-full border border-brand/5">Earmarked Assets</span>
+                    {/* Capital Allocated */}
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Capital Allocated</span>
+                      <span 
+                        className="text-sm sm:text-base font-black text-brand font-mono border-b border-dashed border-slate-400 cursor-help inline-block leading-normal"
+                        title="This is asset value after the time duration minus inflation."
+                      >
+                        {formatIndianCurrency(goal.futureValueAllocated)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Top Right Status Pill */}
+                  <div className="absolute top-4 right-4">
+                    {isFundSufficient ? (
+                      <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Icons.CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                        On Track
+                      </span>
+                    ) : (
+                      <span className="bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Icons.AlertCircle className="w-3 h-3 text-rose-500 shrink-0 select-none animate-pulse" />
+                        Short of Target
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Bottom Right Horizon */}
+                  <div className="absolute bottom-4 right-4 text-[10px] uppercase font-extrabold text-slate-500 font-sans flex items-center gap-1 bg-white border border-slate-200/50 px-2 py-0.5 rounded-lg select-none">
+                    <Icons.CalendarDays className="w-3 h-3 text-slate-400 shrink-0" />
+                    Horizon: {goal.durationYears} Yr{goal.durationYears > 1 ? "s" : ""}
                   </div>
                 </div>
 
-                {/* Milestone coverage slider bar info */}
-                <div className="space-y-2.5">
-                  <div className="flex justify-between items-baseline text-xs font-bold">
-                    <span className="text-slate-450 uppercase text-3xs tracking-wider font-extrabold">Earmarked Capital Pool</span>
-                    <span className="text-slate-800 font-extrabold">
-                      {formatIndianCurrency(currentCommitted, true)} Committed of {formatIndianCurrency(earmarkTarget, true)} downpayment
-                    </span>
-                  </div>
+                {/* Committed Asset with toggle expandable details */}
+                <div className="border border-slate-200/80 rounded-2xl overflow-hidden bg-white">
+                  <button
+                    type="button"
+                    onClick={() => setIsAssetExpanded(!isAssetExpanded)}
+                    className="w-full flex justify-between items-center px-4 py-3 bg-slate-50 hover:bg-slate-100/50 transition-colors text-left font-sans"
+                  >
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Committed Asset</span>
+                      <span className="text-xs font-bold text-slate-700 truncate block max-w-[180px]">
+                        {allocationName}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-slate-400">
+                      <span className="text-[9px] uppercase font-bold tracking-wider">{isAssetExpanded ? "Collapse" : "Expand"}</span>
+                      {isAssetExpanded ? <Icons.ChevronUp className="w-4 h-4" /> : <Icons.ChevronDown className="w-4 h-4" />}
+                    </div>
+                  </button>
                   
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden relative border border-slate-200/40">
-                    <div 
-                      className="h-full bg-brand rounded-full transition-all duration-300"
-                      style={{ width: `${progressPercentage}%` }}
-                    ></div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center text-2xs font-extrabold uppercase text-slate-450">
-                    <span>
-                      Cover Ratio: <b className="text-brand font-black text-xs font-sans">{progressPercentage.toFixed(0)}%</b>
-                    </span>
-                    <span>
-                      Horizon Target: <b className="text-slate-800 text-xs font-sans">{goal.durationYears} years</b>
-                    </span>
-                  </div>
-
-                  {/* Loan Components If Checked */}
-                  {loanAmountVal > 0 && (
-                    <div className="p-3.5 bg-slate-50/70 border border-slate-200 rounded-2xl flex justify-between items-center text-xs">
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Down Payment portion</span>
-                        <div className="font-extrabold text-slate-800">{formatIndianCurrency(earmarkTarget, true)}</div>
-                      </div>
-                      <div className="h-6 w-px bg-slate-200"></div>
-                      <div className="space-y-0.5 text-right">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Passive Loan Principal</span>
-                        <div className="font-black text-cyan-700">{formatIndianCurrency(loanAmountVal, true)}</div>
-                      </div>
+                  {isAssetExpanded && (
+                    <div className="px-4 py-1.5 bg-white border-t border-slate-150 divide-y divide-slate-100 max-h-36 overflow-y-auto">
+                      {selectedSubAssetsWithParent.length > 0 ? (
+                        selectedSubAssetsWithParent.map((item, idx) => (
+                          <div key={idx} className="py-2 flex justify-between items-center text-xs">
+                            <div className="min-w-0 pr-2">
+                              <span className="font-bold text-slate-800 block truncate">{item.name}</span>
+                              <span className="text-[9px] text-slate-450 font-semibold uppercase tracking-wider">{item.parentName}</span>
+                            </div>
+                            <span className="font-bold text-slate-700 shrink-0 font-mono">{formatIndianCurrency(item.value)}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-2 text-center text-xs font-bold text-slate-400">
+                          No explicit allocations selected
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Estimated Future Readout with Inflation Indexing */}
-                <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/60 space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500 text-3xs uppercase font-bold tracking-widest">Compounded Projection (6% Inflation Indexed)</span>
-                    <span className={`text-sm sm:text-base font-black font-sans ${isFundSufficient ? "text-emerald-700" : "text-amber-705"}`}>
-                      {formatIndianCurrency(goal.futureValueAllocated)}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 text-right font-medium">
-                    * Includes defensive compounding factoring target rates adjusting against annual indexation.
-                  </p>
-                </div>
-
-                {/* Debt SWP Arbitrage pathway details */}
-                {loanAmountVal > 0 && (
-                  <div className="p-4 bg-gradient-to-r from-cyan-50/50 to-emerald-50/30 border border-cyan-200/40 rounded-2xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-800 text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                        <Icons.Landmark className="w-3.5 h-3.5 text-cyan-600" />
-                        EMI Arbitrage Pathway
-                      </span>
-                      <span className="text-rose-600 font-extrabold text-xs font-sans">
-                        {formatIndianCurrency(emiVal)} per month
-                      </span>
-                    </div>
-                    <p className="text-slate-600 text-[10.5px] leading-relaxed font-semibold">
-                      Instead of standard cash payouts, you can pay loan EMIs through SWP of <b>{formatIndianCurrency(emiVal)}</b> amount in <b className="text-cyan-950 font-black">{fundYName}</b>. Earmarking an upfront mutual fund corpus of {formatIndianCurrency(corpusNeededVal)} satisfies EMIs completely, keeping {formatIndianCurrency(loanAmountVal - corpusNeededVal)} compounding!
-                    </p>
-                  </div>
-                )}
-
-                {/* Action panel */}
+                {/* SIP Flow block or Fully Funded feedback */}
                 {!isFundSufficient ? (
-                  <div className="p-4 bg-rose-50/55 border border-rose-100 rounded-2xl space-y-3.5">
-                    <div className="text-[11px] text-rose-600 font-extrabold flex items-center gap-2 font-sans">
-                      <Icons.AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                      <span>Funding Deficit Shortcut: <b>{formatIndianCurrency(goal.shortfall)}</b> remaining</span>
+                  <div className="p-4 bg-rose-50/50 border border-rose-100 rounded-2xl flex flex-col sm:flex-row gap-4 justify-between items-center font-sans">
+                    <div className="text-left shrink-0">
+                      <span className="text-[10px] text-rose-500 font-extrabold uppercase tracking-wider block">Monthly SIP Needed</span>
+                      <span className="text-base font-black text-rose-700 font-mono">
+                        {formatIndianCurrency(monthlySIPNeeded)}/mo
+                      </span>
                     </div>
-                    <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                      Setup an active Systematic Investment Plan (SIP) of <b className="text-brand font-black">{formatIndianCurrency(monthlySIPNeeded)} monthly</b> inside those allocations to easily bridge the milestone shortfall under compounding growth.
-                    </p>
                     <button
                       type="button"
                       onClick={() => {
                         onStartSip(goal, monthlySIPNeeded);
-                        setSelectedDetailGoal(null); // Close pop-up
+                        setSelectedDetailGoal(null);
                       }}
-                      className="w-full py-2.5 px-4 rounded-xl bg-brand hover:bg-brand-hover text-white text-[11px] font-extrabold uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer transition-all duration-200 shadow-3xs active:scale-95"
+                      className="w-full sm:w-auto py-2.5 px-4 bg-brand hover:bg-brand-hover text-white text-[11px] font-extrabold uppercase tracking-widest rounded-xl shadow-3xs transition-all active:scale-95 leading-none cursor-pointer"
                     >
-                      <Icons.TrendingUp className="w-3.5 h-3.5" />
-                      <span>{goal.activeSipAmount && goal.activeSipAmount > 0 ? "Modify Active Auto-SIP Settings" : "Start Auto SIP & Link Mandate"}</span>
+                      {goal.activeSipAmount && goal.activeSipAmount > 0 ? "Modify SIP" : "Start SIP"}
                     </button>
                   </div>
                 ) : (
-                  <div className="p-3.5 bg-emerald-50/60 border border-emerald-150/40 rounded-2xl flex items-center gap-2.5">
-                    <Icons.CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 animate-in fade-in" />
-                    <span className="text-emerald-800 text-xs font-bold leading-tight">
-                      This goal is fully covered by current assets! Projected compounding surplus: <b className="font-extrabold">{formatIndianCurrency(goal.futureValueAllocated - earmarkTarget)}</b>
-                    </span>
+                  <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-2 font-sans text-xs text-emerald-800 font-semibold">
+                    <Icons.CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Goal covered by current assets! Projected surplus: {formatIndianCurrency(goal.futureValueAllocated - earmarkTarget)}</span>
                   </div>
                 )}
 
               </div>
 
-              {/* Footer */}
-              <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 sm:justify-end justify-between items-center">
+              {/* Footer Actions */}
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 justify-between items-center">
                 <button
                   onClick={() => {
                     onDeleteGoal(goal.id);
                     setSelectedDetailGoal(null);
                   }}
-                  className="py-2.5 px-4 rounded-xl text-xs font-extrabold text-rose-600 hover:text-white bg-red-50 hover:bg-rose-650 border border-rose-100 hover:border-rose-650 transition-all cursor-pointer shadow-3xs active:scale-95 flex items-center gap-1.5"
+                  className="py-2 px-3.5 rounded-xl text-3xs font-black uppercase tracking-wider text-rose-600 hover:text-white bg-red-50 hover:bg-rose-600 border border-rose-100 hover:border-rose-600 transition-all cursor-pointer select-none"
                 >
-                  <Icons.Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
+                  Delete
                 </button>
                 
                 <div className="flex gap-2">
@@ -461,14 +470,13 @@ export default function GoalsPlanner({
                       onEditGoal(goal);
                       setSelectedDetailGoal(null);
                     }}
-                    className="py-2.5 px-4.5 rounded-xl text-white bg-brand hover:bg-brand-hover text-xs font-extrabold cursor-pointer transition-all shadow-3xs active:scale-95 flex items-center gap-1.5"
+                    className="py-2 px-3.5 rounded-xl text-white bg-brand hover:bg-brand-hover text-3xs font-black uppercase tracking-wider cursor-pointer transition-all active:scale-95 select-none"
                   >
-                    <Icons.SlidersHorizontal className="w-3.5 h-3.5 text-white" />
-                    <span>Edit Details</span>
+                    Edit Details
                   </button>
                   <button
                     onClick={() => setSelectedDetailGoal(null)}
-                    className="py-2.5 px-4 rounded-xl text-slate-500 hover:text-slate-900 bg-white border border-slate-200 text-xs font-bold hover:bg-slate-100 transition-all cursor-pointer shadow-3xs"
+                    className="py-2 px-3 rounded-xl text-slate-500 hover:text-slate-900 bg-white border border-slate-200 text-3xs font-black uppercase tracking-wider hover:bg-slate-100 transition-all cursor-pointer select-none"
                   >
                     Close
                   </button>

@@ -49,4 +49,5 @@ export interface UserProfile {
   currentAge: number;
   retirementAge: number;
   targetRetirementCorpus: number; // default: 10,00,00,000 (10 Cr)
+  monthlyExpenses?: number; // persistent user monthly expenses
 }

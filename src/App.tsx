@@ -32,8 +32,8 @@ export default function App() {
   // Profile modal settings state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [tempProfileName, setTempProfileName] = useState("");
-  const [tempProfileAge, setTempProfileAge] = useState(25);
-  const [tempProfileRetirementAge, setTempProfileRetirementAge] = useState(60);
+  const [tempProfileAge, setTempProfileAge] = useState<number | string>(25);
+  const [tempProfileRetirementAge, setTempProfileRetirementAge] = useState<number | string>(60);
 
   // Views navigation state
   // 1 = Home (My Net worth dashboard), 2 = Financial Goals & planning screen, 3 = Retirement Planning screen
@@ -313,6 +313,7 @@ export default function App() {
                 onEditGoal={handleEditGoal}
                 onDeleteGoal={handleDeleteGoal}
                 onStartSip={handleStartSip}
+                userAge={profile.currentAge}
               />
             )}
 
@@ -325,6 +326,7 @@ export default function App() {
               onEditGoal={handleEditGoal}
               onDeleteGoal={handleDeleteGoal}
               onStartSip={handleStartSip}
+              userAge={profile.currentAge}
             />
 
             {/* 3. AI Copilot Search Bar */}
@@ -431,7 +433,7 @@ export default function App() {
                     <input
                       type="number"
                       value={tempProfileAge}
-                      onChange={(e) => setTempProfileAge(parseInt(e.target.value) || 25)}
+                      onChange={(e) => setTempProfileAge(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-brand rounded-xl text-xs font-semibold text-slate-850 outline-none transition-all font-sans"
                       min="1"
                       max="100"
@@ -444,7 +446,7 @@ export default function App() {
                     <input
                       type="number"
                       value={tempProfileRetirementAge}
-                      onChange={(e) => setTempProfileRetirementAge(parseInt(e.target.value) || 60)}
+                      onChange={(e) => setTempProfileRetirementAge(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-brand rounded-xl text-xs font-semibold text-slate-850 outline-none transition-all font-sans"
                       min="1"
                       max="100"
@@ -467,11 +469,14 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => {
+                    const parsedAge = Math.max(1, parseInt(String(tempProfileAge), 10) || 25);
+                    const parsedRetirementAge = Math.max(parsedAge + 1, parseInt(String(tempProfileRetirementAge), 10) || 60);
                     handleUpdateProfile({
                       name: tempProfileName,
-                      currentAge: tempProfileAge,
-                      retirementAge: tempProfileRetirementAge,
-                      targetRetirementCorpus: profile.targetRetirementCorpus
+                      currentAge: parsedAge,
+                      retirementAge: parsedRetirementAge,
+                      targetRetirementCorpus: profile.targetRetirementCorpus,
+                      monthlyExpenses: profile.monthlyExpenses
                     });
                     setIsProfileModalOpen(false);
                   }}

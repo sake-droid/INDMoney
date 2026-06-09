@@ -97,5 +97,6 @@ export const initialProfile = {
   name: "Bhavik Gupta",
   currentAge: 25,
   retirementAge: 60,
-  targetRetirementCorpus: 100000000 // 10 Cr (10,00,00,000)
+  targetRetirementCorpus: 100000000, // 10 Cr (10,00,00,000)
+  monthlyExpenses: 50000 // Default 50,000 INR
 };

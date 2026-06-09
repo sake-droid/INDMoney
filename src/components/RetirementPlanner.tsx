@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
-import { Landmark, CalendarDays, ArrowUpRight, ShieldCheck, AlertCircle, Sparkles, HelpCircle } from "lucide-react";
+import React from "react";
+import { TrendingUp, CalendarDays, ShieldCheck, Heart, Info } from "lucide-react";
 import { AssetCategory, UserProfile } from "../types";
-import { formatIndianCurrency, calculateFutureValue, getWeightedAverageGrowth } from "../utils/finance";
+import { formatIndianCurrency, getWeightedAverageGrowth, calculateMonthlySIP } from "../utils/finance";
 
 interface RetirementPlannerProps {
   assets: AssetCategory[];
@@ -15,213 +15,273 @@ interface RetirementPlannerProps {
 }
 
 export default function RetirementPlanner({ assets, profile, onUpdateProfile }: RetirementPlannerProps) {
-  const retirementAge = profile.retirementAge;
-  const targetCorpus = profile.targetRetirementCorpus;
   const currentAge = profile.currentAge;
-
-  const setRetirementAge = (age: number) => {
-    onUpdateProfile({ ...profile, retirementAge: age });
-  };
-
-  const setTargetCorpus = (corpus: number) => {
-    onUpdateProfile({ ...profile, targetRetirementCorpus: corpus });
-  };
-
-  // Calculate parameters according to literal user feedback
-  // "In case the logged in user's age is 25, we will show him 'Years left' which will be 45 in this case"
-  const yearsLeftInput = currentAge === 25 ? 45 : Math.max(0, retirementAge - currentAge);
+  const retirementAge = profile.retirementAge;
+  const currentExpenses = profile.monthlyExpenses ?? 50000;
 
   const totalCurrentCapital = assets.reduce((sum, a) => sum + a.totalValue, 0);
   const weightedRate = getWeightedAverageGrowth(assets);
 
-  // Future value at retirement age with real growth (weightedRate - 6% inflation)
-  const realFutureValue = calculateFutureValue(
-    totalCurrentCapital,
-    weightedRate,
-    yearsLeftInput,
-    true // Subtract 6% inflation
-  );
+  // Years left to retire
+  const yearsLeft = Math.max(1, retirementAge - currentAge);
 
-  const shortfall = Math.max(0, targetCorpus - realFutureValue);
-  const isSufficient = realFutureValue >= targetCorpus;
-  const coveragePercent = Math.min(100, (realFutureValue / targetCorpus) * 100);
+  // Inflation calculations: Living (90% influenced by 6% inflation), Medical (10% influenced by 10% inflation)
+  const generalPortion = currentExpenses * 0.90;
+  const medicalPortion = currentExpenses * 0.10;
+
+  const generalInflated = generalPortion * Math.pow(1.06, yearsLeft);
+  const medicalInflated = medicalPortion * Math.pow(1.10, yearsLeft);
+  const combinedMonthlyRetired = generalInflated + medicalInflated;
+  
+  // Calculate necessary corpus: 20x annual post-retirement expenses
+  const calculatedCorpus = Math.round(combinedMonthlyRetired * 12 * 20);
+
+  // Sync profile when inputs change helper
+  const handleExpensesChange = (expenses: number) => {
+    const yLeft = Math.max(1, retirementAge - currentAge);
+    const gen = expenses * 0.90 * Math.pow(1.06, yLeft);
+    const med = expenses * 0.10 * Math.pow(1.10, yLeft);
+    const monthly = gen + med;
+    const corpus = Math.round(monthly * 12 * 20);
+
+    onUpdateProfile({
+      ...profile,
+      monthlyExpenses: expenses,
+      targetRetirementCorpus: corpus,
+    });
+  };
+
+  const handleRetirementAgeChange = (retAge: number) => {
+    const yLeft = Math.max(1, retAge - currentAge);
+    const gen = currentExpenses * 0.90 * Math.pow(1.06, yLeft);
+    const med = currentExpenses * 0.10 * Math.pow(1.10, yLeft);
+    const monthly = gen + med;
+    const corpus = Math.round(monthly * 12 * 20);
+
+    onUpdateProfile({
+      ...profile,
+      retirementAge: retAge,
+      targetRetirementCorpus: corpus,
+    });
+  };
+
+  // Compounding of current active assets under real rate of return (weightedRate - 6% inflation)
+  const realMultiplier = Math.pow(1 + Math.max(0, (weightedRate / 100) - 0.06), yearsLeft);
+  const projectedAssetsReal = totalCurrentCapital * realMultiplier;
+
+  const isSufficient = projectedAssetsReal >= calculatedCorpus;
+  const shortfall = Math.max(0, calculatedCorpus - projectedAssetsReal);
+  const coveragePercent = Math.min(100, (projectedAssetsReal / calculatedCorpus) * 100);
+
+  // Find sub-asset or asset with highest growth rate for recommendation
+  let bestRecommendationName = "Mutual Funds";
+  let maxRate = 0;
+  
+  assets.forEach(cat => {
+    if (cat.averageGrowthRate > maxRate) {
+      maxRate = cat.averageGrowthRate;
+      bestRecommendationName = cat.name;
+    }
+    cat.subAssets.forEach(sub => {
+      if (sub.growthRate > maxRate) {
+        maxRate = sub.growthRate;
+        bestRecommendationName = sub.name;
+      }
+    });
+  });
+
+  const incrementalSip = shortfall > 0 ? calculateMonthlySIP(shortfall, weightedRate, yearsLeft) : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Intro Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4.5">
-        {/* Metric 1 */}
-        <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-slate-50 rounded-bl-full pointer-events-none transition-transform group-hover:scale-105"></div>
-          <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
-            <Landmark className="w-4 h-4 text-brand" />
-            <span>Desired target corpus</span>
-          </div>
-          <div className="text-slate-900 text-2xl font-black font-sans leading-none relative z-10">
-            {formatIndianCurrency(targetCorpus)}
-          </div>
-          <div className="text-[10px] text-slate-500 mt-2.5 font-semibold">
-            Adjust target milestones dynamically below.
-          </div>
+    <div className="space-y-5 animate-in fade-in duration-150">
+      
+      {/* Assumptions Configuration Card */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-5">
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Assumptions Configuration</span>
+          <span className="text-[10px] text-slate-400 font-semibold italic flex items-center gap-1 text-slate-400 bg-slate-50 border border-slate-200/30 px-2 py-0.5 rounded">
+            <Info className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+            General Inflation: 6% | Medical Inflation: 10%
+          </span>
         </div>
-
-        {/* Metric 2 */}
-        <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-slate-50 rounded-bl-full pointer-events-none transition-transform group-hover:scale-105"></div>
-          <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
-            <CalendarDays className="w-4 h-4 text-indigo-500" />
-            <span>Retirement horizon</span>
-          </div>
-          <div className="text-slate-900 text-2xl font-black font-sans leading-none flex items-baseline gap-1 relative z-10">
-            <span>{yearsLeftInput} Years</span>
-            <span className="text-slate-400 text-xs font-semibold ml-1">left</span>
-          </div>
-          <div className="text-[10px] text-brand mt-2.5 font-bold uppercase tracking-wider">
-            Based on current age {currentAge}
-          </div>
-        </div>
-
-        {/* Metric 3 */}
-        <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-slate-50 rounded-bl-full pointer-events-none transition-transform group-hover:scale-105"></div>
-          <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
-            <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-            <span>Compounding index yield</span>
-          </div>
-          <div className="text-slate-900 text-2xl font-black font-sans leading-none relative z-10">
-            {weightedRate.toFixed(2)}% <span className="text-slate-400 text-xs font-medium">p.a.</span>
-          </div>
-          <div className="text-[10px] text-emerald-600 mt-2.5 font-bold uppercase tracking-wider">
-            Capital-weighted portfolio rate
-          </div>
-        </div>
-      </div>
-
-      {/* Interactive slider adjustments */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
-        <div>
-          <h3 className="text-slate-900 text-sm font-bold tracking-tight">
-            Configure accumulation assumptions
-          </h3>
-          <p className="text-slate-500 text-3xs font-medium mt-0.5">
-            Slide the markers under strict Indian inflation adjustments to test target capital structures.
-          </p>
-        </div>
-
-        <div className="space-y-6">
-          {/* Target Amount adjustment slider */}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Monthly Expenses Slider / Input */}
           <div className="space-y-2.5">
             <div className="flex justify-between items-baseline">
-              <label className="text-slate-500 text-xs font-bold">Desired corpus target</label>
-              <span className="text-brand font-black text-sm bg-brand-light px-2.5 py-1 rounded-lg border border-brand/10">
-                {formatIndianCurrency(targetCorpus)}
-              </span>
+              <label className="text-slate-700 text-xs font-bold font-sans">Monthly Expenses Today</label>
+              <div className="flex items-center bg-brand-light border border-brand/15 rounded-lg px-2.5 py-0.5">
+                <span className="text-[11px] text-brand font-black font-sans shrink-0 mr-0.5">₹</span>
+                <input
+                  type="number"
+                  value={currentExpenses}
+                  onChange={(e) => handleExpensesChange(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-20 bg-transparent text-brand text-[11px] font-black outline-none font-mono text-right"
+                />
+              </div>
             </div>
+            
             <input
               type="range"
-              min={20000000} // 2 Cr
-              max={250000000} // 25 Cr
-              step={5000000} // 50 L
-              value={targetCorpus}
-              onChange={(e) => setTargetCorpus(Number(e.target.value))}
+              min={10000}
+              max={1000000}
+              step={5000}
+              value={currentExpenses}
+              onChange={(e) => handleExpensesChange(Number(e.target.value))}
               className="w-full h-1.5 bg-slate-100 accent-brand rounded-lg cursor-pointer transition-all hover:bg-slate-200"
             />
-            <div className="flex justify-between text-slate-400 text-[9.5px] font-bold">
-              <span>₹2 Cr</span>
-              <span>₹10 Cr (recommended)</span>
-              <span>₹18 Cr</span>
-              <span>₹25 Cr</span>
+            
+            <div className="flex justify-between text-slate-400 text-[9px] font-bold font-sans">
+              <span>₹10K</span>
+              <span>₹2.5L</span>
+              <span>₹5L</span>
+              <span>₹10L</span>
             </div>
           </div>
 
-          {/* Age adjustment slider */}
-          <div className="space-y-2.5 pt-2">
+          {/* Retirement Age Slider / Label */}
+          <div className="space-y-2.5">
             <div className="flex justify-between items-baseline">
-              <label className="text-slate-500 text-xs font-bold">Target retirement age</label>
-              <span className="text-brand font-black text-sm bg-brand-light px-2.5 py-1 rounded-lg border border-brand/10">
-                Age {retirementAge} <span className="text-xs text-slate-450 font-semibold">({yearsLeftInput} working years)</span>
+              <label className="text-slate-700 text-xs font-bold font-sans">Retirement Target Age</label>
+              <span className="text-brand font-black text-[11px] bg-brand-light px-2.5 py-1 rounded-lg border border-brand/15 font-sans">
+                Age {retirementAge}
               </span>
             </div>
+            
             <input
               type="range"
-              min={45}
+              min={Math.max(35, currentAge + 1)}
               max={75}
               step={1}
               value={retirementAge}
-              onChange={(e) => setRetirementAge(Number(e.target.value))}
+              onChange={(e) => handleRetirementAgeChange(Number(e.target.value))}
               className="w-full h-1.5 bg-slate-100 accent-brand rounded-lg cursor-pointer transition-all hover:bg-slate-200"
             />
-            <div className="flex justify-between text-slate-400 text-[9.5px] font-bold">
-              <span>Age 45</span>
-              <span>Age 60 (standard guidelines)</span>
+            
+            <div className="flex justify-between text-slate-400 text-[9px] font-bold font-sans">
+              <span>Age {Math.max(35, currentAge + 1)}</span>
+              <span>Age 60</span>
               <span>Age 75</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main shortfall status card */}
-      <div className={`p-6 rounded-2xl border flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 transition-all duration-300 shadow-sm ${
-        isSufficient 
-          ? "bg-emerald-50/65 border-emerald-200/90" 
-          : "bg-rose-50/65 border-rose-200/90"
-      }`}>
-        <div className="space-y-2.5 max-w-xl">
-          <div className="flex items-center gap-2">
-            {isSufficient ? (
-              <div className="px-2.5 py-1 bg-emerald-100 border border-emerald-250 text-emerald-800 rounded-full text-2xs font-extrabold font-sans uppercase tracking-wider shadow-3xs">
-                ✓ On track
-              </div>
-            ) : (
-              <div className="px-2.5 py-1 bg-rose-100 border border-rose-250 text-rose-800 rounded-full text-2xs font-extrabold font-sans uppercase tracking-wider shadow-3xs animate-pulse">
-                ⚠️ Deficit shortfall
-              </div>
-            )}
-            <span className="text-slate-500 text-xs font-bold">Retirement sufficiency status</span>
+      {/* Target Result Banner */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs grid grid-cols-1 md:grid-cols-3 gap-6 relative overflow-hidden font-sans">
+        
+        {/* Core Calculated Corpus output */}
+        <div className="md:col-span-2 space-y-3 md:border-r border-slate-100 pr-0 md:pr-6 flex flex-col justify-center">
+          <div>
+            <span className="text-[10px] text-brand font-extrabold uppercase tracking-wider block">Recommended Retirement Corpus</span>
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight leading-tight">
+              {formatIndianCurrency(calculatedCorpus)}
+            </div>
           </div>
-
-          <p className="text-slate-900 text-sm font-bold leading-relaxed">
-            {isSufficient 
-              ? `Outstanding! Your consolidated active portfolios will compound to an inflation-adjusted real value of ${formatIndianCurrency(realFutureValue)}, fully safeguarding the ${formatIndianCurrency(targetCorpus)} milestone target.`
-              : `With your current investable reserves, your active assets will compound to an estimated real value of ${formatIndianCurrency(realFutureValue)} over ${yearsLeftInput} working years. You currently face a shortfall from your goal.`
-            }
-          </p>
-
-          <p className="text-slate-550 text-slate-500 text-xs leading-relaxed font-semibold">
-            Calculation models 100% reallocation of your current <span className="text-slate-900 font-bold">{formatIndianCurrency(totalCurrentCapital)}</span> portfolio capital towards retirement. Trajectory yield accumulates at a real rate of <span className="text-slate-900 font-bold">{(weightedRate - 6).toFixed(2)}%</span> p.a., which subtracts <span className="text-slate-900 font-bold">6.0% annual inflation benchmarks</span> continuously to reflect pure tomorrow-adjusted buying power.
-          </p>
+          
+          <div className="flex flex-wrap gap-2 text-[10px] font-bold text-slate-500">
+            <span className="flex items-center gap-1 bg-slate-50 border border-slate-200/50 px-2 py-1 rounded-lg">
+              <TrendingUp className="w-3.5 h-3.5 text-slate-400" />
+              Living: {formatIndianCurrency(Math.round(generalInflated))}/mo (6%)
+            </span>
+            <span className="flex items-center gap-1 bg-slate-50 border border-slate-200/50 px-2 py-1 rounded-lg">
+              <Heart className="w-3.5 h-3.5 text-rose-500" />
+              Medical: {formatIndianCurrency(Math.round(medicalInflated))}/mo (10%)
+            </span>
+          </div>
         </div>
 
-        <div className="w-full lg:w-auto p-5 bg-white rounded-xl border border-slate-200/80 min-w-[240px] text-left space-y-4 shrink-0 shadow-3xs">
-          <div>
-            <span className="text-slate-440 text-slate-400 text-[10px] font-bold uppercase tracking-wider block mb-1">
-              Estimated net shortfall
-            </span>
-            <span className={`text-2xl font-black font-sans block leading-none ${isSufficient ? "text-emerald-700" : "text-rose-700"}`}>
-              {isSufficient ? "₹0 (fully covered)" : formatIndianCurrency(shortfall)}
+        {/* Supporting Compact Timeline Metrics */}
+        <div className="flex flex-col justify-center divide-y divide-slate-100">
+          <div className="flex justify-between items-center py-2 text-xs">
+            <span className="text-[10px] text-slate-450 text-slate-400 font-bold uppercase">Working Years Remaining</span>
+            <span className="font-extrabold text-slate-800 flex items-center gap-1">
+              <CalendarDays className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              {yearsLeft} Years
             </span>
           </div>
-
-          <div className="border-t border-slate-200/80 pt-3.5">
-            <span className="text-slate-440 text-slate-400 text-[10px] font-bold uppercase tracking-wider block mb-1.5">
-              Accumulated asset cover
-            </span>
-            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-1.5 border border-slate-150">
-              <div 
-                className={`h-full transition-all duration-500 ${isSufficient ? "bg-emerald-600" : "bg-rose-500"}`}
-                style={{ width: `${coveragePercent}%` }}
-              ></div>
-            </div>
-            <span className="text-slate-500 text-3xs uppercase tracking-wider font-extrabold flex items-center gap-1.5">
-              <span>{coveragePercent.toFixed(1)}% funded</span>
-              <span className="text-slate-300">•</span>
-              <span className={isSufficient ? "text-emerald-600" : "text-rose-600"}>
-                {isSufficient ? "Surplus Reserves" : "Gap Deficit"}
-              </span>
-            </span>
+          <div className="flex justify-between items-center py-2 text-xs">
+            <span className="text-[10px] text-slate-450 text-slate-400 font-bold uppercase">Portfolio Yield (Weighted)</span>
+            <span className="font-extrabold text-emerald-600">{weightedRate.toFixed(1)}% p.a.</span>
+          </div>
+          <div className="flex justify-between items-center py-2 text-xs">
+            <span className="text-[10px] text-slate-450 text-slate-400 font-bold uppercase">Combined Inflated Cost</span>
+            <span className="font-extrabold text-amber-600 font-mono">{formatIndianCurrency(Math.round(combinedMonthlyRetired))}/mo</span>
           </div>
         </div>
       </div>
+
+      {/* Sufficiency Status and Gap Progress */}
+      <div className={`p-4 sm:p-5 rounded-2xl border flex flex-col md:flex-row items-center justify-between gap-5 transition-all shadow-xs ${
+        isSufficient 
+          ? "bg-emerald-50/40 border-emerald-150" 
+          : "bg-rose-50/30 border-rose-150"
+      }`}>
+        <div className="space-y-1 sm:space-y-2 flex-1 leading-normal">
+          <div className="flex items-center gap-1.5 font-sans">
+            {isSufficient ? (
+              <span className="bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                Fully Covered
+              </span>
+            ) : (
+              <span className="bg-rose-100 text-rose-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1 animate-pulse">
+                Shortfall Deficit
+              </span>
+            )}
+            <span className="text-slate-450 text-slate-400 font-bold text-[10px] uppercase tracking-wider">Sufficiency Status</span>
+          </div>
+          <p className="text-slate-800 text-xs font-semibold leading-relaxed font-sans">
+            {isSufficient
+              ? `Your active portfolios will compound to an estimated real value of ${formatIndianCurrency(Math.round(projectedAssetsReal))} (inflation subtracted), fully safeguarding your determined retirement corpus limit.`
+              : `Your assets compound to a real value of ${formatIndianCurrency(Math.round(projectedAssetsReal))}, leaving a shortfall deficit of ${formatIndianCurrency(shortfall)} from target.`}
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4 shrink-0 w-full md:w-auto">
+          <div className="bg-white border border-slate-200/80 rounded-xl p-4 min-w-[210px] flex-1 space-y-2 shadow-3xs font-sans text-left">
+            <div>
+              <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">Portfolio Coverage Match</span>
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1 mb-1 border border-slate-150 relative">
+                <div 
+                  className={`h-full transition-all duration-500 ${isSufficient ? "bg-emerald-500" : "bg-rose-500"}`}
+                  style={{ width: `${coveragePercent}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between items-baseline text-[9px] font-black uppercase text-slate-450">
+                <span className="text-slate-500">{coveragePercent.toFixed(1)}% Funded</span>
+                <span className={isSufficient ? "text-emerald-600" : "text-rose-600 font-bold"}>
+                  {isSufficient ? "On Track" : gapDescription(shortfall)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {!isSufficient && incrementalSip > 0 && (
+            <div className="bg-white border border-slate-200/80 rounded-xl p-4 min-w-[210px] flex-1 space-y-1.5 shadow-3xs font-sans text-left">
+              <div>
+                <span className="text-[9px] font-extrabold text-rose-500 uppercase tracking-widest block">Incremental SIP Needed</span>
+                <div className="text-sm font-black text-rose-700 font-mono mt-0.5 leading-normal">
+                  {formatIndianCurrency(Math.ceil(incrementalSip))}/mo
+                </div>
+                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex justify-between items-center pt-0.5">
+                  <span>Target Asset:</span>
+                  <span className="text-brand font-black max-w-[110px] truncate" title={bestRecommendationName}>
+                    {bestRecommendationName}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      
     </div>
   );
+
+  function gapDescription(gap: number) {
+    if (gap > 10000000) return "High Gap";
+    if (gap > 5000000) return "Medium Gap";
+    return "Low Gap";
+  }
 }

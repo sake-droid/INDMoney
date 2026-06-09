@@ -51,6 +51,12 @@ export default function GoalBottomSheet({
         return { amount: 8000000, years: 10, assetId: "stocks" };
       case "getting married":
         return { amount: 1200000, years: 3, assetId: "mutual_funds" };
+      case "child's education":
+        return { amount: 2500000, years: 8, assetId: "mutual_funds" };
+      case "pilgrimage":
+        return { amount: 500000, years: 3, assetId: "mutual_funds" };
+      case "daughter's marriage":
+        return { amount: 3500000, years: 10, assetId: "mutual_funds" };
       default:
         return { amount: 500000, years: 5, assetId: "mutual_funds" };
     }
@@ -290,6 +296,12 @@ export default function GoalBottomSheet({
         return "Home";
       case "getting married":
         return "Gift";
+      case "child's education":
+        return "GraduationCap";
+      case "pilgrimage":
+        return "Compass";
+      case "daughter's marriage":
+        return "Heart";
       default:
         return "Milestone";
     }
